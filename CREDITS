@@ -1,0 +1,8 @@
+Credits
+-------
+
+Thanks to everyone who got the NPTDR data online - I've always wanted a local data bank of timetables. It may well be delayed data, but nonetheless it is usable data!
+
+This program was originally written in PHP and was stupidly slow... as a result, this was created. 
+
+Thanks to @poggs who provided the test set against which I have tested this program. I believe it mostly passes all of the ones that I have already implemented.
