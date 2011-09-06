@@ -133,14 +133,14 @@ void CIF::processCIFFile(const char* filePath) {
 			mysqlpp::Query query = conn.query();
 			
 			if(header->update_type == "F") { // full update so am disabling the keys... as its so much quicker!				
-				if((bool)TRUNCATE_ON_NEW == true) {
+				/*if((bool)TRUNCATE_ON_NEW == true) {
 					cout << "INFO: Due to application settings, truncating the tables now due to full import." << endl;
 					query.execute("TRUNCATE TABLE schedules");
 					query.execute("TRUNCATE TABLE locations");
 					query.execute("TRUNCATE TABLE tiplocs");
 					
 					cout << "INFO: Tables truncated. Continuing..." << endl;
-				}
+				} */
 				
 				query.execute("ALTER TABLE schedules DISABLE KEYS");
 				query.execute("ALTER TABLE locations DISABLE KEYS");
