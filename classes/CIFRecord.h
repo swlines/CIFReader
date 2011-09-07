@@ -19,12 +19,15 @@
 **/
 
 #include <string>
-#include <mysql++.h>
-#include "CIFRecord.h"
-
 using namespace std;
 
-class CIF {
-	/*public:
-		virtual void processFile(mysqlpp::Connection &conn, const char* filePath){};*/
+class CIFRecord {
+	public:
+		virtual unsigned getRecordType(){return 99;};
+		virtual ~CIFRecord(){};
+		
+	protected:
+		static string convertYYYYMMDDtoSQL(string date);
+		static string convertYYMMDDtoSQL(string date);
+		static string convertDDMMYYtoSQL(string date);
 };

@@ -19,19 +19,8 @@
 **/
 
 #include <string>
-#include <map>
+#include "CIFRecord.h"
 using namespace std;
-
-class CIFRecord {
-	public:
-		virtual unsigned getRecordType(){return 99;};
-		virtual ~CIFRecord(){};
-		
-	protected:
-		static string convertYYYYMMDDtoSQL(string date);
-		static string convertYYMMDDtoSQL(string date);
-		static string convertDDMMYYtoSQL(string date);
-};
 
 string CIFRecord::convertYYMMDDtoSQL(string date) {
 	 string output = "";

@@ -18,27 +18,118 @@
     
 **/
 
-#include "classes/CIF.cpp"
-#include <iostream>
-#include <vector>
-#include <string>
+#include "classes/NRCIF.cpp"
+#include "databaseConfig.h"
 #include <mysql++.h>
+#include <sys/stat.h>
+#include <stdio.h>
+#include <errno.h>
+//#include <boost/filesystem.hpp>
 
 using namespace std;
 
 int main(int argc, char *argv[]) {	
 	cout << "CIF Explorer - Copyright 2011 Tom Cairns" << endl << 	
-			"This program comes with ABSOLUTELY NO WARRANTY. " << endl <<
-			"This is free software, and you are welcome to redistribute it " << endl << 
-			"under certain conditions, see LICENCE." << endl;
+			"This program comes with ABSOLUTELY NO WARRANTY. This is free software and you are " << endl <<
+			"welcome to redistribute it under certain conditions, see LICENCE." << endl << endl;
+	
+	bool truncateTables = false;
+	bool networkRailCIF = true;
+	bool disableKeys = false;
+	char *location = argv[(argc-1)];
+	
+	// process the arguments
+	string arg;
+	for(int i = 0; i < argc; i++) {
+		arg = argv[i];
 
-	if(argc == 2) {
-		CIF::processCIFFile(argv[1]);
-		cout << endl << endl;
+		if(arg == "-t" || arg == "--truncate-tables") {
+			truncateTables = true;
+		}
+		if(arg == "-a" || arg == "--atco") {
+			networkRailCIF = false;
+		}
+		if(arg == "-k" || arg == "--disable-keys") {
+			disableKeys = true;
+		}
+		if(arg == "-h" || arg == "--help") {
+			cout << "Commands:\n\n\t-t or --truncate-tables\n\t\tEmpties all the tables to allow clean import.\n\n\t-a or --atco\n\t\tEnables ATCO-CIF import mode\n\n\t-k or --disable-keys\n\t\tDisables the keys on the tables to allow a much faster import. Re-enables and re-calculates keys after program runs." << endl;
+			return 0;
+		}
+		arg.clear();
 	}
-	else {
-		cout << "Did not specify valid format." << endl << "Usage: " << argv[0] << " file_location" << endl;
+	
+	// attempt mysql connection
+	mysqlpp::Connection conn;
+	if(!conn.connect(sqlDatabase, sqlServer, sqlUsername, sqlPassword)) {
+		cerr << "DB connection failed:" << conn.error() << endl;
+		return 1;
 	}
+	
+	struct stat st_buf;
+	int fileStatus;
+	
+	fileStatus = stat(location, &st_buf);
+	if(fileStatus != 0) { 
+		cout << "Error opening file/directory." << endl;
+		conn.disconnect();
+		return 1;
+	}
+	
+	// ok, so we know that whatever it is exists... users own fault if they
+	// fail on this in my view...! so let's go for it and deal with truncate
+	// tables and disable keys
+	
+	mysqlpp::Query query = conn.query();
+	
+	if(truncateTables) {
+		query.exec("TRUNCATE TABLE associations;");
+		query.exec("TRUNCATE TABLE associations_stpcancel;");
+		query.exec("TRUNCATE TABLE locations;");
+		query.exec("TRUNCATE TABLE schedules;");
+		query.exec("TRUNCATE TABLE schedules_stpcancel;");
+		query.exec("TRUNCATE TABLE tiplocs;");
+		
+		cout << "INFO: Tables have been emptied." << endl;
+	}
+	
+	if(disableKeys) {
+		query.exec("ALTER TABLE associations DISABLE KEYS;");
+		query.exec("ALTER TABLE associations_stpcancel DISABLE KEYS;");
+		query.exec("ALTER TABLE locations DISABLE KEYS;");
+		query.exec("ALTER TABLE schedules DISABLE KEYS;");
+		query.exec("ALTER TABLE schedules_stpcancel DISABLE KEYS;");
+		query.exec("ALTER TABLE tiplocs DISABLE KEYS;");
+		
+		cout << "INFO: Keys have been disabled on tables, they will be re-enabled at the end." << endl;
+	}	
+	
+	NRCIF::processFile(conn, location);
+	
+	if(disableKeys) {
+		cout << "INFO: Now re-enabling keys, this may take up to around 5 minutes..." << endl;
+		cout << "INFO: Enabling keys on associations..." << endl;
+		query.exec("ALTER TABLE associations ENABLE KEYS;");
+		
+		cout << "INFO: Enabling keys on associations_stpcancel..." << endl;
+		query.exec("ALTER TABLE associations_stpcancel ENABLE KEYS;");
+		
+		cout << "INFO: Enabling keys on locations..." << endl;
+		query.exec("ALTER TABLE locations ENABLE KEYS;");
+		
+		cout << "INFO: Enabling keys on schedules..." << endl;
+		query.exec("ALTER TABLE schedules ENABLE KEYS;");
+		
+		cout << "INFO: Enabling keys on schedules_stpcancel..." << endl;
+		query.exec("ALTER TABLE schedules_stpcancel ENABLE KEYS;");
+		
+		cout << "INFO: Enabling keys on tiplocs..." << endl;
+		query.exec("ALTER TABLE tiplocs ENABLE KEYS;");
+		
+		cout << "INFO: Complete, all keys re-enabled and recalculated." << endl;
+	}
+	
+	conn.disconnect();
 	
 	return 0;
 }

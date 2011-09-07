@@ -19,9 +19,13 @@
 **/
 
 #include <string>
-#include <map>
 #include <boost/algorithm/string.hpp>
 #include <uuid/uuid.h>
+
+#ifndef _CIF_RECORD_INC
+#define _CIF_RECORD_INC
+	#include "../CIFRecord.h"
+#endif
 
 using namespace std;
 using namespace boost;
