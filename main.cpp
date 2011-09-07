@@ -118,7 +118,16 @@ int main(int argc, char *argv[]) {
 		string filePath(location);
 		if(filePath.substr(filePath.length() -1, 1) != "/") filePath += "/";
 		
+		set<string> filePaths;
+		
 		for(boost::filesystem::directory_iterator itr(location); itr != end_itr; ++itr) {
+			if(boost::filesystem::is_directory(*itr)) continue;
+			else if(boost::filesystem::exists(*itr)) {
+				filePaths.insert(filePath + itr->leaf());
+			}
+		}
+		
+		for(set<string>::iterator it = filePaths.begin(); it != filePaths.end(); it++) {
 			/* hack to get around weird seg fault */
 			mysqlpp::Connection connection;
 			if(!connection.connect(sqlDatabase, sqlServer, sqlUsername, sqlPassword)) {
@@ -126,18 +135,15 @@ int main(int argc, char *argv[]) {
 				return 1;
 			}
 			
-			if(boost::filesystem::is_directory(*itr)) continue;
-			else if(boost::filesystem::exists(*itr)) {
-				if(networkRailCIF){
-					cout << "to run " << (filePath + itr->leaf()).c_str() << endl;
-					
-					NRCIF::processFile(connection, (filePath + itr->leaf()).c_str());
-				}
-				else {}
+			if(networkRailCIF){
+				//NRCIF::processFile(connection, (*b).c_str());
+				cout << "to run " << (*it).c_str() << endl;
 			}
 			
 			connection.disconnect();
 		}
+		
+		filePaths.clear();
 	}
 	
 	if(disableKeys) {
