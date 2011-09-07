@@ -21,6 +21,12 @@
 #include <string>
 #include <mysql++.h>
 #include "CIFRecord.cpp"
+
+#ifndef CIFRecordNRAAincluded
+#define CIFRecordNRAAincluded // <-- same string as above line
+	#include "NR-CIF/CIFRecordNRAA.cpp"
+#endif
+
 using namespace std;
 
 class CIF {
@@ -35,4 +41,7 @@ class CIF {
 		static string findNRCIFPermServiceBtwnDates(mysqlpp::Connection &conn, string uniqueId, string startDate, string endDate);
 		static void deleteNRCIFService(mysqlpp::Connection &conn, string uuid);
 		static void deleteNRCIFSTPCancel(mysqlpp::Connection &conn, string uuid, string cancelFrom, string cancelTo);
+		
+		static string findUUIDForAssociation(mysqlpp::Connection &conn, CIFRecordNRAA *a, bool exact);
+		static void deleteAssociation(mysqlpp::Connection &conn, string uuid);
 };

@@ -28,9 +28,15 @@
 #include "NR-CIF/CIFRecordNRBS.cpp"
 #include "NR-CIF/CIFRecordNRLOLILT.cpp"
 
+#ifndef CIFRecordNRAAincluded
+#define CIFRecordNRAAincluded // <-- same string as above line
+	#include "NR-CIF/CIFRecordNRAA.cpp"
+#endif
+
+
 // database related stuff
 #include "sqlNetRail.h"
-//#include "databaseConfig.h"
+#include "databaseConfig.h"
 
 #include <iostream>
 #include <fstream>
@@ -79,7 +85,8 @@ void CIF::processCIFFile(const char* filePath) {
 			|    TI - TIPLOC Insert                                                  |
 			|    TA - TIPLOC Amend                                                   |
 			|    TD - TIPLOC Delete                                                  |
-			| [ AA Associations (order Delete, New, Replace) ]                       |
+			|  AA Associations (order Delete, New, Replace)                          |
+			|    - note: STP cancellations of LTP associations not handled currently |
 			|  Schedule:                                                             |
 			|    BS - Basic Schedule                                                 |
 			|    BX - Basic Schedule, additional information                         |
@@ -194,10 +201,84 @@ void CIF::processCIFFile(const char* filePath) {
 					}
 				}
 				else if(recordType == 5) { // associations
+					// process it...
+					CIFRecordNRAA *associationDetail = (CIFRecordNRAA *)record;
 					
+					if(associationDetail->transaction_type == "R" || associationDetail->transaction_type == "D") {
+						if(header->update_type == "F") {
+							cerr << endl << "ERROR: ASSOCIATION REVISE/DELETE record appeared in a full update. Exiting." << endl;
+							delete record;
+							conn.disconnect();
+							return;
+						}
+						
+						if(associationDetail->stp_indicator != "C") {
+							// find this association and remove it.
+							string uuid;
+							
+							try {
+								uuid = CIF::findUUIDForAssociation(conn, associationDetail, true);
+							}
+							catch(int e){
+								cerr << "ERROR: Unable to locate association to delete/amend. Exiting." << endl;
+								delete record;
+								conn.disconnect();
+								return;
+							}
+							
+							CIF::deleteAssociation(conn, uuid);
+							uuid.clear();
+						}
+						else if(associationDetail->stp_indicator == "C") {
+							// cancelling the cancellation of an LTP service...
+						}
+					}
+					
+					if(associationDetail->transaction_type == "N" || associationDetail->transaction_type == "R") {
+						if(associationDetail->stp_indicator != "C") {
+							// we have all the information we need anyway from this... so just need
+							// to put it in the database
+							
+							try {
+								mysqlpp::Query query = conn.query();
+								
+								// load up the schedule
+								associations row(associationDetail->unique_id,
+												 associationDetail->main_train_uid,
+												 associationDetail->assoc_train_uid,
+												 mysqlpp::sql_date(associationDetail->date_from),
+												 mysqlpp::sql_date(associationDetail->date_to),
+												 associationDetail->assoc_mo,
+												 associationDetail->assoc_tu,
+												 associationDetail->assoc_we,
+												 associationDetail->assoc_th,
+												 associationDetail->assoc_fr,
+												 associationDetail->assoc_sa,
+												 associationDetail->assoc_su,
+												 associationDetail->category,
+												 associationDetail->date_indicator,
+												 associationDetail->location,
+												 associationDetail->base_location_suffix,
+												 associationDetail->assoc_location_suffix,
+												 associationDetail->assoc_type,
+												 associationDetail->stp_indicator);
+							
+								query.insert(row);
+								query.execute(); 
+							}
+							catch(mysqlpp::BadQuery& e) {
+								cerr << "Error (query): " << e.what() << endl;
+								conn.disconnect();
+								return;
+							}
+						}
+						else if(associationDetail->stp_indicator == "C") {
+							// this is a LTP cancellation ... 
+						}
+					}
 				}
 				else if(recordType == 6) { // insert
-					// just finish any tiploc stuff...
+					// just finish any tiploc stuff... done here as associations aren't guaranteed
 					if(!tiplocComplete) {
 						// delete the old tiplocs
 						vector<string>::iterator dit;
@@ -237,7 +318,7 @@ void CIF::processCIFFile(const char* filePath) {
 							string uuid;
 						
 							try {
-								uuid = CIF::findNRCIFService(conn, scheduleDetail->uid, scheduleDetail->date_from);
+								uuid = CIF::findNRCIFService(conn, scheduleDetail->uid, scheduleDetail->date_from, scheduleDetail->stp_indicator);
 							}
 							catch(int e) {
 								cerr << "ERROR: Unable to locate service to delete/amend. Exiting." << endl;
@@ -255,7 +336,7 @@ void CIF::processCIFFile(const char* filePath) {
 							
 							// find the permament service relating to these dates
 							try {
-								uuid = CIF::findNRCIFPermServiceBtwnDates(conn, scheduleDetail->uid, scheduleDetail->date_from, schedule->date_to);
+								uuid = CIF::findNRCIFPermServiceBtwnDates(conn, scheduleDetail->uid, scheduleDetail->date_from, scheduleDetail->date_to);
 							}
 							catch(int e) {
 								cerr << "ERROR: Unable to locate service to remove STP cancel" << endl;
@@ -358,7 +439,7 @@ void CIF::processCIFFile(const char* filePath) {
 							// get uuid of service being STP cancelled
 							string uuid;
 							try {
-								uuid = CIF::findNRCIFPermServiceBtwnDates(conn, scheduleDetail->uid, scheduleDetail->date_from, schedule->date_to);
+								uuid = CIF::findNRCIFPermServiceBtwnDates(conn, scheduleDetail->uid, scheduleDetail->date_from, scheduleDetail->date_to);
 							}
 							catch(int e) {
 								cerr << "ERROR: Unable to locate service to STP cancel" << endl;
@@ -424,6 +505,11 @@ CIFRecord* CIF::processNRCIFLine(string record) {
 	else if(recordType == "LO" || recordType == "LI" || recordType == "LT") { // journey origin
 		return new CIFRecordNRLOLILT(record);
 	}
+	
+	else if(recordType == "AA") {
+		return new CIFRecordNRAA(record);
+	}
+	
 	else {
 		throw 1;
 	}
@@ -432,12 +518,7 @@ CIFRecord* CIF::processNRCIFLine(string record) {
 string CIF::findNRCIFService(mysqlpp::Connection &conn, string uniqueId, string startDate, string stpIndicator) {
 	mysqlpp::Query query = conn.query();
 	
-	if(stpIndicator == "") {
-		query << "SELECT uuid FROM schedules WHERE train_uid = " << mysqlpp::quote << uniqueId << " AND date_from = " << mysqlpp::quote << startDate << " AND stpIndicator = 'N' LIMIT 0, 1";
-	}
-	else {
-		query << "SELECT uuid FROM schedules WHERE train_uid = " << mysqlpp::quote << uniqueId << " AND date_from = " << mysqlpp::quote << startDate << " AND stpIndicator = " << mysqlpp::quote << stpIndicator << " LIMIT 0, 1";
-	}
+	query << "SELECT uuid FROM schedules WHERE train_uid = " << mysqlpp::quote << uniqueId << " AND date_from = " << mysqlpp::quote << startDate << " AND stpIndicator = " << mysqlpp::quote << stpIndicator << " LIMIT 0, 1";
 	
 	if(mysqlpp::StoreQueryResult res = query.store()) {
 		if(res.num_rows() > 0) {
@@ -474,11 +555,56 @@ void CIF::deleteNRCIFService(mysqlpp::Connection &conn, string uuid) {
 	
 	query << "DELETE FROM schedules WHERE uuid = " << mysqlpp::quote << uuid;
 	query.execute();
+	
+	query << "DELETE FROM schedules_stpcancel WHERE uuid = " << mysqlpp::quote << uuid;
+	query.execute();
 }
 
 void CIF::deleteNRCIFSTPCancel(mysqlpp::Connection &conn, string uuid, string cancelFrom, string cancelTo) {
 	mysqlpp::Query query = conn.query();
 	
 	query << "DELETE FROM schedules_stpcancel WHERE uuid = " << mysqlpp::quote << uuid << " AND cancel_from = " << mysqlpp::quote << cancelFrom << " AND cancel_to = " << mysqlpp::quote << cancelTo;
+	query.execute();
+}
+
+string CIF::findUUIDForAssociation(mysqlpp::Connection &conn, CIFRecordNRAA *a, bool exact) {
+	mysqlpp::Query query = conn.query(); 
+	
+	// find this association
+	if(exact) {
+		if(a->date_to != "") {
+			query << "SELECT uuid FROM associations WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND date_from = " << mysqlpp::quote << a->date_from << " AND date_to = " << mysqlpp::quote << a->date_to << "  LIMIT 0,1"; 
+		}
+		else {
+			query << "SELECT uuid FROM associations WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND date_from = " << mysqlpp::quote << a->date_from << " LIMIT 0,1";
+		}
+	}
+	else{
+		if(a->date_to != "") {
+			query << "SELECT uuid FROM associations WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND (((" << mysqlpp::quote << a->date_from << " IS BETWEEN date_from AND date_to)) AND (" << mysqlpp::quote << a->date_to << " IS BETWEEN date_from AND date_to)) LIMIT 0,1"; 
+		}
+		else {
+			query << "SELECT uuid FROM associations WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND date_from = " << mysqlpp::quote << a->date_from << " LIMIT 0,1";
+		}
+	}
+	
+	if(mysqlpp::StoreQueryResult res = query.store()) {
+		if(res.num_rows() > 0) {
+			return res[0]["uuid"].c_str();
+		}
+		
+		throw 1;
+	}
+	
+	throw 2;
+}
+
+void CIF::deleteAssociation(mysqlpp::Connection &conn, string uuid) {
+	mysqlpp::Query query = conn.query();
+	
+	query << "DELETE FROM associations WHERE uuid = " << mysqlpp::quote << uuid;
+	query.execute();
+	
+	query << "DELETE FROM associations_stpcancel WHERE uuid = " << mysqlpp::quote << uuid;
 	query.execute();
 }

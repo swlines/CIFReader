@@ -86,3 +86,36 @@ CREATE TABLE IF NOT EXISTS `tiplocs` (
   KEY `crs_code` (`crs`),
   KEY `stanox` (`stanox`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+CREATE TABLE IF NOT EXISTS `associations` (
+  `uuid` varchar(50) NOT NULL,
+  `main_train_uid` varchar(6) NOT NULL,
+  `assoc_train_uid` varchar(6) NOT NULL,
+  `date_from` date NOT NULL,
+  `date_to` date NOT NULL,
+  `assoc_mo` tinyint(1) NOT NULL,
+  `assoc_tu` tinyint(1) NOT NULL,
+  `assoc_we` tinyint(1) NOT NULL,
+  `assoc_th` tinyint(1) NOT NULL,
+  `assoc_fr` tinyint(1) NOT NULL,
+  `assoc_sa` tinyint(1) NOT NULL,
+  `assoc_su` tinyint(1) NOT NULL,
+  `category` varchar(2) NOT NULL,
+  `date_indicator` varchar(1) NOT NULL,
+  `location` varchar(7) NOT NULL,
+  `base_location_suffix` varchar(1) NOT NULL,
+  `assoc_location_suffix` varchar(1) NOT NULL,
+  `assoc_type` varchar(1) NOT NULL,
+  `stp_indicator` varchar(1) NOT NULL,
+  UNIQUE KEY `uuid` (`uuid`),
+  KEY `main_train_uid` (`main_train_uid`),
+  KEY `date_from` (`date_from`),
+  KEY `date_to` (`date_to`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+CREATE TABLE IF NOT EXISTS `associations_stpcancel` (
+  `uuid` varchar(50) NOT NULL,
+  `cancel_from` date NOT NULL,
+  `cancel_to` date NOT NULL,
+  KEY `uuid` (`uuid`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='Contains LTP services with an STP cancel (C on CIF)';
