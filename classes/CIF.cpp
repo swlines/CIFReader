@@ -21,19 +21,6 @@
 // cif related stuff
 #include "CIF.h"
 
-// NR CIF
-#include "NR-CIF/CIFRecordNRHD.cpp"
-#include "NR-CIF/CIFRecordNRTITA.cpp"
-#include "NR-CIF/CIFRecordNRTD.cpp"
-#include "NR-CIF/CIFRecordNRBS.cpp"
-#include "NR-CIF/CIFRecordNRLOLILT.cpp"
-
-#ifndef CIFRecordNRAAincluded
-#define CIFRecordNRAAincluded // <-- same string as above line
-	#include "NR-CIF/CIFRecordNRAA.cpp"
-#endif
-
-
 // database related stuff
 #include "sqlNetRail.h"
 #include "databaseConfig.h"
@@ -318,7 +305,7 @@ void CIF::processCIFFile(const char* filePath) {
 							string uuid;
 						
 							try {
-								uuid = CIF::findNRCIFService(conn, scheduleDetail->uid, scheduleDetail->date_from, scheduleDetail->stp_indicator);
+								uuid = CIF::findUUIDforService(conn, scheduleDetail, true);
 							}
 							catch(int e) {
 								cerr << "ERROR: Unable to locate service to delete/amend. Exiting." << endl;
@@ -336,7 +323,9 @@ void CIF::processCIFFile(const char* filePath) {
 							
 							// find the permament service relating to these dates
 							try {
-								uuid = CIF::findNRCIFPermServiceBtwnDates(conn, scheduleDetail->uid, scheduleDetail->date_from, scheduleDetail->date_to);
+								scheduleDetail->stp_indicator = "P"; // temporarily change indicator to P to find service
+								uuid = CIF::findUUIDforService(conn, scheduleDetail, true);
+								scheduleDetail->stp_indicator = "C";
 							}
 							catch(int e) {
 								cerr << "ERROR: Unable to locate service to remove STP cancel" << endl;
@@ -515,10 +504,26 @@ CIFRecord* CIF::processNRCIFLine(string record) {
 	}
 }
 
-string CIF::findNRCIFService(mysqlpp::Connection &conn, string uniqueId, string startDate, string stpIndicator) {
+static string CIF::findUUIDForService(mysqlpp::Connection &conn, CIFRecordNRBS *s, bool exact) {
 	mysqlpp::Query query = conn.query();
 	
-	query << "SELECT uuid FROM schedules WHERE train_uid = " << mysqlpp::quote << uniqueId << " AND date_from = " << mysqlpp::quote << startDate << " AND stpIndicator = " << mysqlpp::quote << stpIndicator << " LIMIT 0, 1";
+	// find this service
+	if(exact) {
+		if(s->date_to != "") {
+			query << "SELECT uuid FROM schedules WHERE train_uid = " << mysqlpp::quote << s->uid << " AND date_from = " << mysqlpp::quote << s->date_from << " AND date_to = " << mysqlpp::quote << s->date_to << " AND stp_indicator = " << mysqlpp::quote << s->stp_indicator << " LIMIT 0,1";
+		}
+		else {
+			query << "SELECT uuid FROM schedules WHERE train_uid = " << mysqlpp::quote << s->uid << " AND date_from = " << mysqlpp::quote << s->date_from << " AND stp_indicator = " << mysqlpp::quote << s->stp_indicator << " LIMIT 0,1";
+		}
+	}
+	else {
+		if(a->date_to != "") {
+			query << "SELECT uuid FROM associations WHERE train_uid = " << mysqlpp::quote << s->uid << " AND (((" << mysqlpp::quote << a->date_from << " IS BETWEEN date_from AND date_to)) AND (" << mysqlpp::quote << a->date_to << " IS BETWEEN date_from AND date_to)) AND stp_indicator = " << mysqlpp::quote << s->stp_indicator << "  LIMIT 0,1"; 
+		}
+		else {
+			query << "SELECT uuid FROM associations WHERE train_uid = " << mysqlpp::quote << s->uid << " AND (((" << mysqlpp::quote << a->date_from << " IS BETWEEN date_from AND date_to)) AND stp_indicator = " << mysqlpp::quote << s->stp_indicator << " LIMIT 0,1";
+		}
+	}
 	
 	if(mysqlpp::StoreQueryResult res = query.store()) {
 		if(res.num_rows() > 0) {
@@ -531,23 +536,14 @@ string CIF::findNRCIFService(mysqlpp::Connection &conn, string uniqueId, string 
 	throw 2;
 }
 
-string CIF::findNRCIFPermServiceBtwnDates(mysqlpp::Connection &conn, string uniqueId, string startDate, string endDate) {
+void CIF::deleteSTPServiceCancellation(mysqlpp::Connection &conn, string uuid, string cancelFrom, string cancelTo) {
 	mysqlpp::Query query = conn.query();
 	
-	query << "SELECT uuid FROM schedules WHERE train_uid = " << mysqlpp::quote << uniqueId << " AND ((" << mysqlpp::quote << startDate << " BETWEEN date_from AND date_to) AND (" << mysqlpp::quote << endDate << " BETWEEN date_from AND date_to)) AND stp_indicator = 'P' LIMIT 0,1";
-	
-	if(mysqlpp::StoreQueryResult res = query.store()) {
-		if(res.num_rows() > 0) {
-			return res[0]["uuid"].c_str();
-		}
-		
-		throw 1;
-	}
-	
-	throw 2;
+	query << "DELETE FROM schedules_stpcancel WHERE uuid = " << mysqlpp::quote << uuid << " AND cancel_from = " << mysqlpp::quote << cancelFrom << " AND cancel_to = " << mysqlpp::quote << cancelTo;
+	query.execute();
 }
 
-void CIF::deleteNRCIFService(mysqlpp::Connection &conn, string uuid) {
+void CIF::deleteService(mysqlpp::Connection &conn, string uuid) {
 	mysqlpp::Query query = conn.query();
 	
 	query << "DELETE FROM locations WHERE uuid = " << mysqlpp::quote << uuid;
@@ -557,13 +553,6 @@ void CIF::deleteNRCIFService(mysqlpp::Connection &conn, string uuid) {
 	query.execute();
 	
 	query << "DELETE FROM schedules_stpcancel WHERE uuid = " << mysqlpp::quote << uuid;
-	query.execute();
-}
-
-void CIF::deleteNRCIFSTPCancel(mysqlpp::Connection &conn, string uuid, string cancelFrom, string cancelTo) {
-	mysqlpp::Query query = conn.query();
-	
-	query << "DELETE FROM schedules_stpcancel WHERE uuid = " << mysqlpp::quote << uuid << " AND cancel_from = " << mysqlpp::quote << cancelFrom << " AND cancel_to = " << mysqlpp::quote << cancelTo;
 	query.execute();
 }
 
