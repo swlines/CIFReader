@@ -415,6 +415,8 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 	}
 	else {
 		cout << "ERROR: Cannot open file (" << filePath << "), moving on..." << endl;
+		file.close();
+		return;
 	}
 	
 	if(errors.size() == 0) {
