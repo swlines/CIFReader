@@ -27,6 +27,7 @@
 #include "NR-CIF/CIFRecordNRBS.cpp"
 #include "NR-CIF/CIFRecordNRLOLILT.cpp"
 #include "NR-CIF/CIFRecordNRAA.cpp"
+#include "NR-CIF/CIFRecordNRCR.cpp"
 
 using namespace std;
 

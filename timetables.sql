@@ -27,6 +27,33 @@ CREATE TABLE IF NOT EXISTS `locations` (
   KEY `public_departure` (`public_departure`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
+CREATE TABLE IF NOT EXISTS `locations_change` (
+  `uuid` varchar(50) NOT NULL,
+  `tiploc` varchar(7) NOT NULL,
+  `tiploc_instance` varchar(1) NOT NULL,
+  `category` varchar(2) NOT NULL,
+  `train_identity` varchar(4) NOT NULL,
+  `headcode` varchar(4) NOT NULL,
+  `service_code` varchar(8) NOT NULL,
+  `portion_id` varchar(1) NOT NULL,
+  `power_type` varchar(3) NOT NULL,
+  `timing_load` varchar(4) NOT NULL,
+  `speed` varchar(3) NOT NULL,
+  `operating_characteristics` varchar(6) NOT NULL,
+  `train_class` varchar(1) NOT NULL,
+  `sleepers` varchar(1) NOT NULL,
+  `reservations` varchar(1) NOT NULL,
+  `catering_code` varchar(4) NOT NULL,
+  `service_branding` varchar(4) NOT NULL,
+  `uic_code` varchar(5) NOT NULL,
+  `rsid` varchar(8) NOT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  KEY `uuid` (`uuid`),
+  KEY `identity` (`train_identity`),
+  KEY `tiploc` (`tiploc`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
 CREATE TABLE IF NOT EXISTS `schedules` (
   `uuid` varchar(50) NOT NULL,
   `train_uid` varchar(6) NOT NULL,

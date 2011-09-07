@@ -163,7 +163,7 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 							uuid = NRCIF::findUUIDForAssociation(conn, associationDetail, true);
 						}
 						catch(int e){
-							cerr << "ERROR: Unable to locate association to delete/amend. Exiting." << endl;
+							cerr << endl << "ERROR: Unable to locate association to delete/amend. Exiting." << endl;
 							delete record;
 							conn.disconnect();
 							return;
@@ -304,13 +304,17 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 					
 					// ok set it up and now get schedule locations
 						vector<locations> locs;
+						vector<locations_change> locs_change;
 						
 						CIFRecord *schedulerec;
 						int location_order = 0;
 						
 						while(1) {
 							getline(file, line);
-							schedulerec = NRCIF::processLine(line);
+							try {
+								schedulerec = NRCIF::processLine(line);
+							} 
+							catch(int e) { continue; } // unknown line, would cause segmentation fault
 							
 							if(schedulerec->getRecordType() == 7) {
 								CIFRecordNRLOLILT *location = (CIFRecordNRLOLILT *)schedulerec;
@@ -320,6 +324,11 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 								if(location->record_type == "LT") { delete schedulerec; break; }
 								
 								location_order++;
+							}
+							else if(schedulerec->getRecordType() == 8) {
+								CIFRecordNRCR *cr = (CIFRecordNRCR *)schedulerec;
+								
+								locs_change.push_back(locations_change(scheduleDetail->unique_id, cr->tiploc, cr->tiploc_suffix, cr->category, cr->train_identity, cr->headcode, cr->service_code, cr->portion_id, cr->power_type, cr->timing_load, cr->speed, cr->operating_characteristics, cr->train_class, cr->sleepers, cr->reservations, cr->catering_code, cr->service_branding, cr->uic_code, cr->rsid));
 							}
 							
 							delete schedulerec;
@@ -369,7 +378,9 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 							// insert policy for remaining stuff
 							mysqlpp::Query::RowCountInsertPolicy<> insert_policy(1000);
 							query.insertfrom(locs.begin(), locs.end(), insert_policy);
-							locs.clear();
+							query.insertfrom(locs_change.begin(), locs_change.end(), insert_policy);
+							locs.clear(); 
+							locs_change.clear();
 						}
 						catch(mysqlpp::BadQuery& e) {
 							cerr << "Error (query): " << e.what() << endl;
@@ -458,6 +469,9 @@ CIFRecord* NRCIF::processLine(string record) {
 	else if(recordType == "LO" || recordType == "LI" || recordType == "LT") { // journey origin
 		return new CIFRecordNRLOLILT(record);
 	}
+	else if(recordType == "CR") {
+		return new CIFRecordNRCR(record);
+	}
 	
 	else if(recordType == "AA") {
 		return new CIFRecordNRAA(record);
@@ -511,6 +525,9 @@ void NRCIF::deleteService(mysqlpp::Connection &conn, string uuid) {
 	mysqlpp::Query query = conn.query();
 	
 	query << "DELETE FROM locations WHERE uuid = " << mysqlpp::quote << uuid;
+	query.execute();
+	
+	query << "DELETE FROM locations_change WHERE uuid = " << mysqlpp::quote << uuid;
 	query.execute();
 	
 	query << "DELETE FROM schedules WHERE uuid = " << mysqlpp::quote << uuid;
