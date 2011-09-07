@@ -48,6 +48,8 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 	fileCurrent = begin;
 	long displayKb = fileSize / (long)1024;
 	
+	vector<string> errors;
+	
 	if(file.is_open()) {
 		string line;
 		
@@ -237,7 +239,7 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 							query.execute();
 						}
 						catch(mysqlpp::BadQuery& e) {
-							cout << "INFO: Inserting location error: " << e.what() << endl;
+							errors.push_back("INFO: Inserting location error: " + string(e.what()));
 						}
 					}
 					tiplocInsert.clear();
@@ -411,8 +413,24 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 		
 		delete header;
 	}
+	else {
+		cout << "ERROR: Cannot open file (" << filePath << "), moving on..." << endl;
+	}
 	
-	cout << endl << "INFO: File complete..." << endl << endl;
+	if(errors.size() == 0) {
+		cout << endl << "INFO: File complete..." << endl << endl;
+	}
+	else {
+		cout << endl << "INFO: File complete, but errors occured during processing: " << endl;
+		vector<string>::iterator it;
+		
+		for(it = errors.begin(); it < errors.end(); it++) {
+			cout << *it << endl;
+		}
+		
+		cout << endl;
+		errors.clear();
+	}
 	
 	file.close();	
 }
