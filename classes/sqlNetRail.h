@@ -88,7 +88,7 @@ sql_create_17(locations, 1, 17,
 	mysqlpp::sql_varchar, performance_allowance,
 	mysqlpp::sql_varchar, activity);
 	
-sql_create_19(locations_change, 1, 18,
+sql_create_19(locations_change, 1, 19,
 	mysqlpp::sql_varchar, uuid,
 	mysqlpp::sql_varchar, tiploc,
 	mysqlpp::sql_varchar, tiploc_instance,

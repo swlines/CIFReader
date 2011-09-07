@@ -24,7 +24,8 @@
 #include <sys/stat.h>
 #include <stdio.h>
 #include <errno.h>
-//#include <boost/filesystem.hpp>
+#include <boost/filesystem/operations.hpp>
+#include <boost/filesystem/path.hpp>
 
 using namespace std;
 
@@ -104,7 +105,40 @@ int main(int argc, char *argv[]) {
 		cout << "INFO: Keys have been disabled on tables, they will be re-enabled at the end." << endl;
 	}	
 	
-	NRCIF::processFile(conn, location);
+	if(S_ISREG(st_buf.st_mode)) {
+		if(networkRailCIF){
+			NRCIF::processFile(conn, location);
+		}
+		else {}
+	}
+	else if(S_ISDIR(st_buf.st_mode)) {
+		
+	
+		boost::filesystem::directory_iterator end_itr;
+		string filePath(location);
+		if(filePath.substr(filePath.length() -1, 1) != "/") filePath += "/";
+		
+		for(boost::filesystem::directory_iterator itr(location); itr != end_itr; ++itr) {
+			/* hack to get around weird seg fault */
+			mysqlpp::Connection connection;
+			if(!connection.connect(sqlDatabase, sqlServer, sqlUsername, sqlPassword)) {
+				cerr << "DB connection failed:" << conn.error() << endl;
+				return 1;
+			}
+			
+			if(boost::filesystem::is_directory(*itr)) continue;
+			else if(boost::filesystem::exists(*itr)) {
+				if(networkRailCIF){
+					cout << "to run " << (filePath + itr->leaf()).c_str() << endl;
+					
+					NRCIF::processFile(connection, (filePath + itr->leaf()).c_str());
+				}
+				else {}
+			}
+			
+			connection.disconnect();
+		}
+	}
 	
 	if(disableKeys) {
 		cout << "INFO: Now re-enabling keys, this may take up to around 5 minutes..." << endl;

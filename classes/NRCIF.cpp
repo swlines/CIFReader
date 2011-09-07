@@ -328,7 +328,25 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 							else if(schedulerec->getRecordType() == 8) {
 								CIFRecordNRCR *cr = (CIFRecordNRCR *)schedulerec;
 								
-								locs_change.push_back(locations_change(scheduleDetail->unique_id, cr->tiploc, cr->tiploc_suffix, cr->category, cr->train_identity, cr->headcode, cr->service_code, cr->portion_id, cr->power_type, cr->timing_load, cr->speed, cr->operating_characteristics, cr->train_class, cr->sleepers, cr->reservations, cr->catering_code, cr->service_branding, cr->uic_code, cr->rsid));
+								locs_change.push_back(locations_change(scheduleDetail->unique_id, 
+																	   cr->tiploc,
+																	   cr->tiploc_suffix,
+																	   cr->category,
+																	   cr->train_identity,
+																	   cr->headcode,
+																	   cr->service_code,
+																	   cr->portion_id,
+																	   cr->power_type,
+																	   cr->timing_load,
+																	   cr->speed,
+																	   cr->operating_characteristics,
+																	   cr->train_class,
+																	   cr->sleepers,
+																	   cr->reservations,
+																	   cr->catering_code,
+																	   cr->service_branding,
+																	   cr->uic_code,
+																	   cr->rsid));
 							}
 							
 							delete schedulerec;
@@ -496,10 +514,10 @@ string NRCIF::findUUIDForService(mysqlpp::Connection &conn, CIFRecordNRBS *s, bo
 	}
 	else {
 		if(s->date_to != "") {
-			query << "SELECT uuid FROM associations WHERE train_uid = " << mysqlpp::quote << s->uid << " AND (((" << mysqlpp::quote << s->date_from << " IS BETWEEN date_from AND date_to)) AND (" << mysqlpp::quote << s->date_to << " IS BETWEEN date_from AND date_to)) AND stp_indicator = " << mysqlpp::quote << s->stp_indicator << "  LIMIT 0,1"; 
+			query << "SELECT uuid FROM schedules WHERE train_uid = " << mysqlpp::quote << s->uid << " AND (" << mysqlpp::quote << s->date_from << " BETWEEN date_from AND date_to) AND (" << mysqlpp::quote << s->date_to << " BETWEEN date_from AND date_to) AND stp_indicator = " << mysqlpp::quote << s->stp_indicator << "  LIMIT 0,1"; 
 		}
 		else {
-			query << "SELECT uuid FROM associations WHERE train_uid = " << mysqlpp::quote << s->uid << " AND (((" << mysqlpp::quote << s->date_from << " IS BETWEEN date_from AND date_to)) AND stp_indicator = " << mysqlpp::quote << s->stp_indicator << " LIMIT 0,1";
+			query << "SELECT uuid FROM schedules WHERE train_uid = " << mysqlpp::quote << s->uid << " AND (" << mysqlpp::quote << s->date_from << " BETWEEN date_from AND date_to) AND stp_indicator = " << mysqlpp::quote << s->stp_indicator << " LIMIT 0,1";
 		}
 	}
 	
@@ -551,10 +569,10 @@ string NRCIF::findUUIDForAssociation(mysqlpp::Connection &conn, CIFRecordNRAA *a
 	}
 	else{
 		if(a->date_to != "") {
-			query << "SELECT uuid FROM associations WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND (((" << mysqlpp::quote << a->date_from << " IS BETWEEN date_from AND date_to)) AND (" << mysqlpp::quote << a->date_to << " IS BETWEEN date_from AND date_to)) LIMIT 0,1"; 
+			query << "SELECT uuid FROM associations WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND (" << mysqlpp::quote << a->date_from << " BETWEEN date_from AND date_to) AND (" << mysqlpp::quote << a->date_to << " BETWEEN date_from AND date_to) LIMIT 0,1"; 
 		}
 		else {
-			query << "SELECT uuid FROM associations WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND date_from = " << mysqlpp::quote << a->date_from << " LIMIT 0,1";
+			query << "SELECT uuid FROM associations WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND (" << mysqlpp::quote << a->date_from << " BETWEEN date_from AND date_to) LIMIT 0,1";
 		}
 	}
 	
