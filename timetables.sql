@@ -68,6 +68,13 @@ CREATE TABLE IF NOT EXISTS `schedules` (
   KEY `train_uid` (`train_uid`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
+CREATE TABLE IF NOT EXISTS `schedules_stpcancel` (
+  `uuid` varchar(50) NOT NULL,
+  `cancel_from` date NOT NULL,
+  `cancel_to` date NOT NULL,
+  KEY `uuid` (`uuid`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='Contains LTP services with an STP cancel (C on CIF)';
+
 CREATE TABLE IF NOT EXISTS `tiplocs` (
   `tiploc` varchar(7) NOT NULL,
   `nalco` varchar(6) NOT NULL,

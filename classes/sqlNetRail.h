@@ -55,7 +55,11 @@ sql_create_33(schedules, 1, 33,
 	mysqlpp::sql_varchar, ats_code,
 	mysqlpp::sql_varchar, rsid,
 	mysqlpp::sql_varchar, data_source);
-
+	
+sql_create_3(schedules_stpcancel, 1, 3,
+	mysqlpp::sql_varchar, uuid,
+	mysqlpp::sql_date, cancel_from,
+	mysqlpp::sql_date, cancel_to);
 
 sql_create_6(tiplocs, 1, 6,
 	mysqlpp::sql_varchar, tiploc,

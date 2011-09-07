@@ -85,7 +85,7 @@ void CIF::processCIFFile(const char* filePath) {
 			|    BX - Basic Schedule, additional information                         |
 			|  [ TN - Train specific note record ]                                   |
 			|    LO - Origin location                                                |
-			|    CR - Change en route (always associated with following LI)          |
+			|  [ CR - Change en route (always associated with following LI) ]        |
 			|    LI - Intermediate location                                          |
 			|    LT - Terminating location                                           |
 			|  [ LN - Location note - may follow any LO, LI or LT ]                  |
@@ -233,101 +233,148 @@ void CIF::processCIFFile(const char* filePath) {
 							return;
 						}
 						
-						string uuid;
+						if(scheduleDetail->stp_indicator != "C") { // deletion of a non STP cancel.
+							string uuid;
 						
-						try {
-							uuid = CIF::findNRCIFService(conn, scheduleDetail->uid, scheduleDetail->date_from);
-						}
-						catch(int e) {
-							cerr << "ERROR: Unable to locate service to delete/amend. Exiting." << endl;
-							delete record;
-							conn.disconnect();
-							return;
-						}
+							try {
+								uuid = CIF::findNRCIFService(conn, scheduleDetail->uid, scheduleDetail->date_from);
+							}
+							catch(int e) {
+								cerr << "ERROR: Unable to locate service to delete/amend. Exiting." << endl;
+								delete record;
+								conn.disconnect();
+								return;
+							}
 						
-						CIF::deleteNRCIFService(conn, uuid);
-						uuid.clear();
+							CIF::deleteNRCIFService(conn, uuid);
+							uuid.clear();
+						}
+						else if(scheduleDetail->stp_indicator == "C") {
+							// deletion of an STP cancel...
+							string uuid;
+							
+							// find the permament service relating to these dates
+							try {
+								uuid = CIF::findNRCIFPermServiceBtwnDates(conn, scheduleDetail->uid, scheduleDetail->date_from, schedule->date_to);
+							}
+							catch(int e) {
+								cerr << "ERROR: Unable to locate service to remove STP cancel" << endl;
+								delete record;
+								conn.disconnect();
+								return;
+							}
+							
+							CIF::deleteNRCIFSTPCancel(conn, uuid, scheduleDetail->date_from, scheduleDetail->date_to);
+							uuid.clear();
+						}
 					}
 										
 					if(scheduleDetail->transaction_type == "N" || scheduleDetail->transaction_type == "R") {
-						// the BX record is always the next line, so just parse this straight back to the scheduleDetail.
-						getline(file, line);
-						scheduleDetail->mergeWithBX(line);
+						if(scheduleDetail->stp_indicator != "C") { 
+						
+							// the BX record is always the next line, so just parse this straight back to the scheduleDetail.
+							getline(file, line);
+							scheduleDetail->mergeWithBX(line);
 						
 						// ok set it up and now get schedule locations
-						vector<locations> locs;
-						
-						CIFRecord *schedulerec;
-						int location_order = 0;
-						
-						while(1) {
-							getline(file, line);
-							schedulerec = CIF::processNRCIFLine(line);
+							vector<locations> locs;
 							
-							if(schedulerec->getRecordType() == 7) {
-								CIFRecordNRLOLILT *location = (CIFRecordNRLOLILT *)schedulerec;
+							CIFRecord *schedulerec;
+							int location_order = 0;
+							
+							while(1) {
+								getline(file, line);
+								schedulerec = CIF::processNRCIFLine(line);
 								
-								locs.push_back(locations(scheduleDetail->unique_id, location_order, location->record_type, location->tiploc, location->tiploc_instance, location->arrival, location->public_arrival, location->pass, location->departure, location->public_departure, location->platform, location->line, location->path, location->engineering_allowance, location->pathing_allowance, location->performance_allowance, location->activity));
+								if(schedulerec->getRecordType() == 7) {
+									CIFRecordNRLOLILT *location = (CIFRecordNRLOLILT *)schedulerec;
+									
+									locs.push_back(locations(scheduleDetail->unique_id, location_order, location->record_type, location->tiploc, location->tiploc_instance, location->arrival, location->public_arrival, location->pass, location->departure, location->public_departure, location->platform, location->line, location->path, location->engineering_allowance, location->pathing_allowance, location->performance_allowance, location->activity));
 								
-								if(location->record_type == "LT") { delete schedulerec; break; }
+									if(location->record_type == "LT") { delete schedulerec; break; }
+									
+									location_order++;
+								}
 								
-								location_order++;
+								delete schedulerec;
 							}
 							
-							delete schedulerec;
+							try {
+								mysqlpp::Query query = conn.query();
+								
+								// load up the schedule
+								schedules row(scheduleDetail->unique_id,
+											  scheduleDetail->uid,
+											  mysqlpp::sql_date(scheduleDetail->date_from),
+											  mysqlpp::sql_date(scheduleDetail->date_to),
+											  scheduleDetail->runs_mo,
+											  scheduleDetail->runs_tu,
+											  scheduleDetail->runs_we,
+											  scheduleDetail->runs_th,
+											  scheduleDetail->runs_fr,
+											  scheduleDetail->runs_sa,
+											  scheduleDetail->runs_su,
+											  scheduleDetail->bank_holiday,
+											  scheduleDetail->status,
+											  scheduleDetail->category,
+											  scheduleDetail->train_identity,
+											  scheduleDetail->headcode,
+											  scheduleDetail->service_code,
+											  scheduleDetail->portion_id,
+											  scheduleDetail->power_type,
+											  scheduleDetail->timing_load,
+											  scheduleDetail->speed,
+											  scheduleDetail->operating_characteristics,
+											  scheduleDetail->train_class,
+											  scheduleDetail->sleepers,
+											  scheduleDetail->reservations,
+											  scheduleDetail->catering_code,
+											  scheduleDetail->service_branding,
+											  scheduleDetail->stp_indicator,
+											  scheduleDetail->uic_code,
+											  scheduleDetail->atoc_code,
+											  scheduleDetail->ats_code,
+											  scheduleDetail->rsid,
+											  scheduleDetail->data_source);
+							
+								query.insert(row);
+								query.execute(); 
+							
+								// insert policy for remaining stuff
+								mysqlpp::Query::RowCountInsertPolicy<> insert_policy(1000);
+								query.insertfrom(locs.begin(), locs.end(), insert_policy);
+								locs.clear();
+							}
+							catch(mysqlpp::BadQuery& e) {
+								cerr << "Error (query): " << e.what() << endl;
+								conn.disconnect();
+								return;
+							}
 						}
-						
-						try {
+						else if(scheduleDetail->stp_indicator == "C") {
+							// this is a STP CAN of LTP schedule
+							// locate the uuid of the service being cancelled...
+							
+							// get uuid of service being STP cancelled
+							string uuid;
+							try {
+								uuid = CIF::findNRCIFPermServiceBtwnDates(conn, scheduleDetail->uid, scheduleDetail->date_from, schedule->date_to);
+							}
+							catch(int e) {
+								cerr << "ERROR: Unable to locate service to STP cancel" << endl;
+								delete record;
+								conn.disconnect();
+								return;
+							}
+							
 							mysqlpp::Query query = conn.query();
 							
-							// load up the schedule
-							schedules row(scheduleDetail->unique_id,
-										  scheduleDetail->uid,
-										  mysqlpp::sql_date(scheduleDetail->date_from),
-										  mysqlpp::sql_date(scheduleDetail->date_to),
-										  scheduleDetail->runs_mo,
-										  scheduleDetail->runs_tu,
-										  scheduleDetail->runs_we,
-										  scheduleDetail->runs_th,
-										  scheduleDetail->runs_fr,
-										  scheduleDetail->runs_sa,
-										  scheduleDetail->runs_su,
-										  scheduleDetail->bank_holiday,
-										  scheduleDetail->status,
-										  scheduleDetail->category,
-										  scheduleDetail->train_identity,
-										  scheduleDetail->headcode,
-										  scheduleDetail->service_code,
-										  scheduleDetail->portion_id,
-										  scheduleDetail->power_type,
-										  scheduleDetail->timing_load,
-										  scheduleDetail->speed,
-										  scheduleDetail->operating_characteristics,
-										  scheduleDetail->train_class,
-										  scheduleDetail->sleepers,
-										  scheduleDetail->reservations,
-										  scheduleDetail->catering_code,
-										  scheduleDetail->service_branding,
-										  scheduleDetail->stp_indicator,
-										  scheduleDetail->uic_code,
-										  scheduleDetail->atoc_code,
-										  scheduleDetail->ats_code,
-										  scheduleDetail->rsid,
-										  scheduleDetail->data_source);
+							schedules_stpcancel row(uuid, mysqlpp::sql_date(scheduleDetail->date_from), mysqlpp::sql_date(scheduleDetail->date_to));
 							
 							query.insert(row);
-							query.execute(); 
-							
-							// insert policy for remaining stuff
-							mysqlpp::Query::RowCountInsertPolicy<> insert_policy(1000);
-							query.insertfrom(locs.begin(), locs.end(), insert_policy);
-							locs.clear();
-						}
-						catch(mysqlpp::BadQuery& e) {
-							cerr << "Error (query): " << e.what() << endl;
-							conn.disconnect();
-							return;
-						}
+							query.execute();
+							uuid.clear();
+						} 
 					}
 				}
 				
@@ -382,10 +429,32 @@ CIFRecord* CIF::processNRCIFLine(string record) {
 	}
 }
 
-string CIF::findNRCIFService(mysqlpp::Connection &conn, string uniqueId, string startDate) {
+string CIF::findNRCIFService(mysqlpp::Connection &conn, string uniqueId, string startDate, string stpIndicator) {
 	mysqlpp::Query query = conn.query();
 	
-	query << "SELECT uuid, train_uid FROM schedules WHERE train_uid = " << mysqlpp::quote << uniqueId << " AND date_from = " << mysqlpp::quote << startDate << " LIMIT 0, 1";
+	if(stpIndicator == "") {
+		query << "SELECT uuid FROM schedules WHERE train_uid = " << mysqlpp::quote << uniqueId << " AND date_from = " << mysqlpp::quote << startDate << " AND stpIndicator = 'N' LIMIT 0, 1";
+	}
+	else {
+		query << "SELECT uuid FROM schedules WHERE train_uid = " << mysqlpp::quote << uniqueId << " AND date_from = " << mysqlpp::quote << startDate << " AND stpIndicator = " << mysqlpp::quote << stpIndicator << " LIMIT 0, 1";
+	}
+	
+	if(mysqlpp::StoreQueryResult res = query.store()) {
+		if(res.num_rows() > 0) {
+			return res[0]["uuid"].c_str();
+		}
+		
+		throw 1;
+	}
+	
+	throw 2;
+}
+
+string CIF::findNRCIFPermServiceBtwnDates(mysqlpp::Connection &conn, string uniqueId, string startDate, string endDate) {
+	mysqlpp::Query query = conn.query();
+	
+	query << "SELECT uuid FROM schedules WHERE train_uid = " << mysqlpp::quote << uniqueId << " AND ((" << mysqlpp::quote << startDate << " BETWEEN date_from AND date_to) AND (" << mysqlpp::quote << endDate << " BETWEEN date_from AND date_to)) AND stp_indicator = 'P' LIMIT 0,1";
+	
 	if(mysqlpp::StoreQueryResult res = query.store()) {
 		if(res.num_rows() > 0) {
 			return res[0]["uuid"].c_str();
@@ -404,5 +473,12 @@ void CIF::deleteNRCIFService(mysqlpp::Connection &conn, string uuid) {
 	query.execute();
 	
 	query << "DELETE FROM schedules WHERE uuid = " << mysqlpp::quote << uuid;
+	query.execute();
+}
+
+void CIF::deleteNRCIFSTPCancel(mysqlpp::Connection &conn, string uuid, string cancelFrom, string cancelTo) {
+	mysqlpp::Query query = conn.query();
+	
+	query << "DELETE FROM schedules_stpcancel WHERE uuid = " << mysqlpp::quote << uuid << " AND cancel_from = " << mysqlpp::quote << cancelFrom << " AND cancel_to = " << mysqlpp::quote << cancelTo;
 	query.execute();
 }

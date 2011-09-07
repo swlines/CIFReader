@@ -31,6 +31,8 @@ class CIF {
 		static streampos fileSize(const char* filePath);
 		static CIFRecord* processNRCIFLine(string record);
 		
-		static string findNRCIFService(mysqlpp::Connection &conn, string uniqueId, string startDate);
+		static string findNRCIFService(mysqlpp::Connection &conn, string uniqueId, string startDate, string stpIndicator);
+		static string findNRCIFPermServiceBtwnDates(mysqlpp::Connection &conn, string uniqueId, string startDate, string endDate);
 		static void deleteNRCIFService(mysqlpp::Connection &conn, string uuid);
+		static void deleteNRCIFSTPCancel(mysqlpp::Connection &conn, string uuid, string cancelFrom, string cancelTo);
 };
