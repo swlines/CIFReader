@@ -136,8 +136,7 @@ int main(int argc, char *argv[]) {
 			}
 			
 			if(networkRailCIF){
-				//NRCIF::processFile(connection, (*b).c_str());
-				cout << "to run " << (*it).c_str() << endl;
+				NRCIF::processFile(connection, (*b).c_str());
 			}
 			
 			connection.disconnect();
