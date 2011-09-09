@@ -99,6 +99,13 @@ CREATE TABLE IF NOT EXISTS `schedules_stpcancel` (
   `uuid` varchar(50) NOT NULL,
   `cancel_from` date NOT NULL,
   `cancel_to` date NOT NULL,
+  `cancel_mo` tinyint(1) NOT NULL,
+  `cancel_tu` tinyint(1) NOT NULL,
+  `cancel_we` tinyint(1) NOT NULL,
+  `cancel_th` tinyint(1) NOT NULL,
+  `cancel_fr` tinyint(1) NOT NULL,
+  `cancel_sa` tinyint(1) NOT NULL,
+  `cancel_su` tinyint(1) NOT NULL,
   KEY `uuid` (`uuid`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='Contains LTP services with an STP cancel (C on CIF)';
 
@@ -144,5 +151,12 @@ CREATE TABLE IF NOT EXISTS `associations_stpcancel` (
   `uuid` varchar(50) NOT NULL,
   `cancel_from` date NOT NULL,
   `cancel_to` date NOT NULL,
+  `cancel_mo` tinyint(1) NOT NULL,
+  `cancel_tu` tinyint(1) NOT NULL,
+  `cancel_we` tinyint(1) NOT NULL,
+  `cancel_th` tinyint(1) NOT NULL,
+  `cancel_fr` tinyint(1) NOT NULL,
+  `cancel_sa` tinyint(1) NOT NULL,
+  `cancel_su` tinyint(1) NOT NULL,
   KEY `uuid` (`uuid`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='Contains LTP services with an STP cancel (C on CIF)';
