@@ -594,9 +594,7 @@ string NRCIF::findUUIDForService(mysqlpp::Connection &conn, CIFRecordNRBS *s, bo
 			query << "SELECT uuid FROM schedules WHERE train_uid = " << mysqlpp::quote << s->uid << " AND (" << mysqlpp::quote << s->date_from << " BETWEEN date_from AND date_to) " << runs_on << " LIMIT 0,1";
 		}
 	}
-	
-	cout << endl << query.str() << endl;
-	
+		
 	if(mysqlpp::StoreQueryResult res = query.store()) {
 		if(res.num_rows() > 0) {
 			return res[0]["uuid"].c_str();
@@ -680,9 +678,7 @@ string NRCIF::findUUIDForAssociation(mysqlpp::Connection &conn, CIFRecordNRAA *a
 			query << "SELECT uuid FROM associations WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND (" << mysqlpp::quote << a->date_from << " BETWEEN date_from AND date_to) " << assoc_on << " LIMIT 0,1";
 		}
 	}
-	
-	cout << endl << query.str() << endl;
-	
+		
 	if(mysqlpp::StoreQueryResult res = query.store()) {
 		if(res.num_rows() > 0) {
 			return res[0]["uuid"].c_str();
