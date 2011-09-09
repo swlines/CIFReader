@@ -121,10 +121,10 @@ void CIFRecordNRBS::mergeWithBX(string rec) {
 			rsid += headcode;
 			
 			if(portion_id == "") { 
-				rsid += "0";
+				rsid += "00";
 			}
 			else {
-				rsid += portion_id;
+				rsid += "0" + portion_id;
 			}
 		}
 	}

@@ -37,43 +37,57 @@ int main(int argc, char *argv[]) {
 	bool truncateTables = false;
 	bool networkRailCIF = true;
 	bool disableKeys = false;
-	char *location = argv[(argc-1)];
+	vector<string> files;
+	vector<string> directories;
+	int fileStatus;
+	struct stat st_buf;
 	
 	// process the arguments
 	string arg;
-	for(int i = 0; i < argc; i++) {
+	for(int i = 1; i < argc; i++) {
 		arg = argv[i];
 
 		if(arg == "-t" || arg == "--truncate-tables") {
 			truncateTables = true;
 		}
-		if(arg == "-a" || arg == "--atco") {
+		else if(arg == "-a" || arg == "--atco") {
 			networkRailCIF = false;
 		}
-		if(arg == "-k" || arg == "--disable-keys") {
+		else if(arg == "-k" || arg == "--disable-keys") {
 			disableKeys = true;
 		}
-		if(arg == "-h" || arg == "--help") {
+		else if(arg == "-h" || arg == "--help") {
 			cout << "Commands:\n\n\t-t or --truncate-tables\n\t\tEmpties all the tables to allow clean import.\n\n\t-a or --atco\n\t\tEnables ATCO-CIF import mode\n\n\t-k or --disable-keys\n\t\tDisables the keys on the tables to allow a much faster import. Re-enables and re-calculates keys after program runs." << endl;
 			return 0;
 		}
+		else {
+			fileStatus = stat(argv[i], &st_buf);
+			if(fileStatus != 0) { 
+				arg.clear();
+				continue;
+			}
+			
+			if(S_ISREG(st_buf.st_mode)) { 
+				cout << "file: \"" << arg << "\"" << endl;
+				files.push_back(arg); 
+			}
+			else if(S_ISDIR(st_buf.st_mode)) { 
+				cout << "dir: \"" << arg << "\"" << endl;
+				directories.push_back(arg);
+			}
+		}
 		arg.clear();
+	}
+	
+	if(files.size() == 0 && directories.size() == 0) {
+		cerr << "No files or directories to process given. " << endl; 
+		return 1;
 	}
 	
 	// attempt mysql connection
 	mysqlpp::Connection conn;
 	if(!conn.connect(sqlDatabase, sqlServer, sqlUsername, sqlPassword)) {
 		cerr << "DB connection failed:" << conn.error() << endl;
-		return 1;
-	}
-	
-	struct stat st_buf;
-	int fileStatus;
-	
-	fileStatus = stat(location, &st_buf);
-	if(fileStatus != 0) { 
-		cout << "Error opening file/directory." << endl;
-		conn.disconnect();
 		return 1;
 	}
 	
@@ -87,6 +101,7 @@ int main(int argc, char *argv[]) {
 		query.exec("TRUNCATE TABLE associations;");
 		query.exec("TRUNCATE TABLE associations_stpcancel;");
 		query.exec("TRUNCATE TABLE locations;");
+		query.exec("TRUNCATE TABLE locations_change;");
 		query.exec("TRUNCATE TABLE schedules;");
 		query.exec("TRUNCATE TABLE schedules_stpcancel;");
 		query.exec("TRUNCATE TABLE tiplocs;");
@@ -98,6 +113,7 @@ int main(int argc, char *argv[]) {
 		query.exec("ALTER TABLE associations DISABLE KEYS;");
 		query.exec("ALTER TABLE associations_stpcancel DISABLE KEYS;");
 		query.exec("ALTER TABLE locations DISABLE KEYS;");
+		query.exec("ALTER TABLE locations_change DISABLE KEYS;");
 		query.exec("ALTER TABLE schedules DISABLE KEYS;");
 		query.exec("ALTER TABLE schedules_stpcancel DISABLE KEYS;");
 		query.exec("ALTER TABLE tiplocs DISABLE KEYS;");
@@ -105,22 +121,32 @@ int main(int argc, char *argv[]) {
 		cout << "INFO: Keys have been disabled on tables, they will be re-enabled at the end." << endl;
 	}	
 	
-	if(S_ISREG(st_buf.st_mode)) {
+	for(vector<string>::iterator fit = files.begin(); fit < files.end(); ++fit) {
+		/* hack to get around weird seg fault */
+		mysqlpp::Connection connection;
+		if(!connection.connect(sqlDatabase, sqlServer, sqlUsername, sqlPassword)) {
+			cerr << "DB connection failed:" << conn.error() << endl;
+			return 1;
+		}
+			
 		if(networkRailCIF){
-			NRCIF::processFile(conn, location);
+			NRCIF::processFile(connection, (*fit).c_str());
 		}
 		else {}
-	}
-	else if(S_ISDIR(st_buf.st_mode)) {
 		
+		connection.disconnect();
+	}
 	
+	files.clear();
+	
+	for(vector<string>::iterator dit = directories.begin(); dit < directories.end(); ++dit) {
 		boost::filesystem::directory_iterator end_itr;
-		string filePath(location);
+		string filePath = *dit;
 		if(filePath.substr(filePath.length() -1, 1) != "/") filePath += "/";
 		
 		set<string> filePaths;
 		
-		for(boost::filesystem::directory_iterator itr(location); itr != end_itr; ++itr) {
+		for(boost::filesystem::directory_iterator itr(*dit); itr != end_itr; ++itr) {
 			if(boost::filesystem::is_directory(*itr)) continue;
 			else if(boost::filesystem::exists(*itr)) {
 				filePaths.insert(filePath + itr->leaf());
@@ -136,7 +162,7 @@ int main(int argc, char *argv[]) {
 			}
 			
 			if(networkRailCIF){
-				NRCIF::processFile(connection, (*b).c_str());
+				NRCIF::processFile(connection, (*it).c_str());
 			}
 			
 			connection.disconnect();
@@ -144,6 +170,8 @@ int main(int argc, char *argv[]) {
 		
 		filePaths.clear();
 	}
+	
+	directories.clear();
 	
 	if(disableKeys) {
 		cout << "INFO: Now re-enabling keys, this may take up to around 5 minutes..." << endl;
@@ -155,6 +183,9 @@ int main(int argc, char *argv[]) {
 		
 		cout << "INFO: Enabling keys on locations..." << endl;
 		query.exec("ALTER TABLE locations ENABLE KEYS;");
+		
+		cout << "INFO: Enabling keys on locations_change..." << endl;
+		query.exec("ALTER TABLE locations_change ENABLE KEYS;");
 		
 		cout << "INFO: Enabling keys on schedules..." << endl;
 		query.exec("ALTER TABLE schedules ENABLE KEYS;");
