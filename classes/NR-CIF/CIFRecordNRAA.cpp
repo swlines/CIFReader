@@ -80,6 +80,18 @@ CIFRecordNRAA::CIFRecordNRAA(string rec) {
 	}
 	catch(out_of_range& oor){}
 	
+	// if a cancel, then trimming the assoc_mo, etc, records is helpful as it helps
+	// when searching for a uuid.
+	if(stp_indicator == "C" || transaction_type == "D") {
+		if(assoc_mo == "0" || assoc_mo == " ") trim(assoc_mo);
+		if(assoc_tu == "0" || assoc_tu == " ") trim(assoc_tu);
+		if(assoc_we == "0" || assoc_we == " ") trim(assoc_we);
+		if(assoc_th == "0" || assoc_th == " ") trim(assoc_th);
+		if(assoc_fr == "0" || assoc_fr == " ") trim(assoc_fr);
+		if(assoc_sa == "0" || assoc_sa == " ") trim(assoc_sa);
+		if(assoc_su == "0" || assoc_su == " ") trim(assoc_su);
+	}
+	
 	trim(category);
 	trim(date_indicator);
 	trim(location);

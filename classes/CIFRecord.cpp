@@ -20,32 +20,45 @@
 
 #include <string>
 #include "CIFRecord.h"
+#include <boost/algorithm/string.hpp>
 using namespace std;
+using namespace boost;
 
 string CIFRecord::convertYYMMDDtoSQL(string date) {
-	 string output = "";
-	 int year = atoi(date.substr(0, 2).c_str());
+	string output = "";
 	 
-	 if(year >= 0 && year <= 59) {
-	 	output += "20";
-	 }
-	 else if(year >= 60 && year <= 99) {
-	 	output += "19";
-	 }
+	trim(date);
+	if(date == "") {
+		return output;
+	}
 	 
-	 output += date.substr(0, 2); // year
-	 output += "-";
-	 output += date.substr(2, 2); // month
-	 output += "-";
-	 output += date.substr(4, 2); // date
+	int year = atoi(date.substr(0, 2).c_str());
 	 
-	 return output;
+	if(year >= 0 && year <= 59) {
+		output += "20";
+	}
+	else if(year >= 60 && year <= 99) {
+		output += "19";
+	}
+	 
+	output += date.substr(0, 2); // year
+	output += "-";
+	output += date.substr(2, 2); // month
+	output += "-";
+	output += date.substr(4, 2); // date
+ 
+	return output;
 }
 
 string CIFRecord::convertDDMMYYtoSQL(string date) {
 	 string output = "";
-	 int year = atoi(date.substr(4, 2).c_str());
 	 
+	trim(date);
+	if(date == "") {
+		return output;
+	}
+	
+	 int year = atoi(date.substr(4, 2).c_str());
 	 if(year >= 0 && year <= 59) {
 	 	output += "20";
 	 }
@@ -63,7 +76,12 @@ string CIFRecord::convertDDMMYYtoSQL(string date) {
 }
 
 string CIFRecord::convertYYYYMMDDtoSQL(string date) {
-	 string output;
+	 string output = "";
+	 
+	 trim(date);
+	if(date == "") {
+		return output;
+	}
 	 	 
 	 output  = date.substr(0, 4); // year
 	 output += "-";

@@ -56,10 +56,17 @@ sql_create_33(schedules, 1, 33,
 	mysqlpp::sql_varchar, rsid,
 	mysqlpp::sql_varchar, data_source);
 	
-sql_create_3(schedules_stpcancel, 1, 3,
+sql_create_10(schedules_stpcancel, 1, 10,
 	mysqlpp::sql_varchar, uuid,
 	mysqlpp::sql_date, cancel_from,
-	mysqlpp::sql_date, cancel_to);
+	mysqlpp::sql_date, cancel_to,
+	mysqlpp::sql_char, cancel_mo,
+	mysqlpp::sql_char, cancel_tu,
+	mysqlpp::sql_char, cancel_we,
+	mysqlpp::sql_char, cancel_th,
+	mysqlpp::sql_char, cancel_fr,
+	mysqlpp::sql_char, cancel_sa,
+	mysqlpp::sql_char, cancel_su);
 
 sql_create_6(tiplocs, 1, 6,
 	mysqlpp::sql_varchar, tiploc,
@@ -130,7 +137,14 @@ sql_create_19(associations, 1, 19,
 	mysqlpp::sql_varchar, assoc_type,
 	mysqlpp::sql_varchar, stp_indicator);
 
-sql_create_3(associations_stpcancel, 1, 3,
+sql_create_10(associations_stpcancel, 1, 10,
 	mysqlpp::sql_varchar, uuid,
 	mysqlpp::sql_date, cancel_from,
-	mysqlpp::sql_date, cancel_to);
+	mysqlpp::sql_date, cancel_to,
+	mysqlpp::sql_char, cancel_mo,
+	mysqlpp::sql_char, cancel_tu,
+	mysqlpp::sql_char, cancel_we,
+	mysqlpp::sql_char, cancel_th,
+	mysqlpp::sql_char, cancel_fr,
+	mysqlpp::sql_char, cancel_sa,
+	mysqlpp::sql_char, cancel_su);

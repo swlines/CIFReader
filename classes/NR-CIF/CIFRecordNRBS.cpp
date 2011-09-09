@@ -88,6 +88,18 @@ CIFRecordNRBS::CIFRecordNRBS(string rec) {
 	}
 	catch(out_of_range& oor){}
 	
+	// if a cancel, then trimming the runs_mo, etc, records is helpful as it helps
+	// when searching for a uuid.
+	if(stp_indicator == "C" || transaction_type == "D") {
+		if(runs_mo == "0" || runs_mo == " ") trim(runs_mo);
+		if(runs_tu == "0" || runs_tu == " ") trim(runs_tu);
+		if(runs_we == "0" || runs_we == " ") trim(runs_we);
+		if(runs_th == "0" || runs_th == " ") trim(runs_th);
+		if(runs_fr == "0" || runs_fr == " ") trim(runs_fr);
+		if(runs_sa == "0" || runs_sa == " ") trim(runs_sa);
+		if(runs_su == "0" || runs_su == " ") trim(runs_su);
+	}
+	
 	trim(bank_holiday);
 	trim(category);
 	trim(headcode);

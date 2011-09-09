@@ -68,11 +68,9 @@ int main(int argc, char *argv[]) {
 			}
 			
 			if(S_ISREG(st_buf.st_mode)) { 
-				cout << "file: \"" << arg << "\"" << endl;
 				files.push_back(arg); 
 			}
 			else if(S_ISDIR(st_buf.st_mode)) { 
-				cout << "dir: \"" << arg << "\"" << endl;
 				directories.push_back(arg);
 			}
 		}
