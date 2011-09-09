@@ -47,8 +47,6 @@ CREATE TABLE IF NOT EXISTS `locations_change` (
   `service_branding` varchar(4) NOT NULL,
   `uic_code` varchar(5) NOT NULL,
   `rsid` varchar(8) NOT NULL,
-  `created_at` datetime NOT NULL,
-  `updated_at` datetime NOT NULL,
   KEY `uuid` (`uuid`),
   KEY `identity` (`train_identity`),
   KEY `tiploc` (`tiploc`)
@@ -92,7 +90,19 @@ CREATE TABLE IF NOT EXISTS `schedules` (
   `updated_at` datetime NOT NULL,
   KEY `uuid` (`uuid`),
   KEY `identity` (`train_identity`),
-  KEY `train_uid` (`train_uid`)
+  KEY `train_uid` (`train_uid`),
+  KEY `date_from` (`date_from`),
+  KEY `date_to` (`date_to`),
+  KEY `runs_mo` (`runs_mo`),
+  KEY `runs_tu` (`runs_tu`),
+  KEY `runs_we` (`runs_we`),
+  KEY `runs_th` (`runs_th`),
+  KEY `runs_fr` (`runs_fr`),
+  KEY `runs_sa` (`runs_sa`),
+  KEY `runs_su` (`runs_su`),
+  KEY `atoc_code` (`atoc_code`),
+  KEY `status` (`status`),
+  KEY `bank_hol` (`bank_hol`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `schedules_stpcancel` (
@@ -106,7 +116,16 @@ CREATE TABLE IF NOT EXISTS `schedules_stpcancel` (
   `cancel_fr` tinyint(1) NOT NULL,
   `cancel_sa` tinyint(1) NOT NULL,
   `cancel_su` tinyint(1) NOT NULL,
-  KEY `uuid` (`uuid`)
+  KEY `uuid` (`uuid`),
+  KEY `cancel_from` (`cancel_from`),
+  KEY `cancel_to` (`cancel_to`),
+  KEY `cancel_mo` (`cancel_mo`),
+  KEY `cancel_tu` (`cancel_tu`),
+  KEY `cancel_we` (`cancel_we`),
+  KEY `cancel_th` (`cancel_th`),
+  KEY `cancel_fr` (`cancel_fr`),
+  KEY `cancel_sa` (`cancel_sa`),
+  KEY `cancel_su` (`cancel_su`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='Contains LTP services with an STP cancel (C on CIF)';
 
 CREATE TABLE IF NOT EXISTS `tiplocs` (
@@ -144,7 +163,16 @@ CREATE TABLE IF NOT EXISTS `associations` (
   UNIQUE KEY `uuid` (`uuid`),
   KEY `main_train_uid` (`main_train_uid`),
   KEY `date_from` (`date_from`),
-  KEY `date_to` (`date_to`)
+  KEY `date_to` (`date_to`),
+  KEY `assoc_train_uid` (`assoc_train_uid`),
+  KEY `assoc_mo` (`assoc_mo`),
+  KEY `assoc_tu` (`assoc_tu`),
+  KEY `assoc_we` (`assoc_we`),
+  KEY `assoc_th` (`assoc_th`),
+  KEY `assoc_fr` (`assoc_fr`),
+  KEY `assoc_sa` (`assoc_sa`),
+  KEY `assoc_su` (`assoc_su`),
+  KEY `location` (`location`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `associations_stpcancel` (
@@ -158,5 +186,15 @@ CREATE TABLE IF NOT EXISTS `associations_stpcancel` (
   `cancel_fr` tinyint(1) NOT NULL,
   `cancel_sa` tinyint(1) NOT NULL,
   `cancel_su` tinyint(1) NOT NULL,
-  KEY `uuid` (`uuid`)
+  KEY `uuid` (`uuid`),
+  KEY `cancel_mo` (`cancel_mo`),
+  KEY `cancel_tu` (`cancel_tu`),
+  KEY `cancel_we` (`cancel_we`),
+  KEY `cancel_th` (`cancel_th`),
+  KEY `cancel_fr` (`cancel_fr`),
+  KEY `cancel_sa` (`cancel_sa`),
+  KEY `cancel_su` (`cancel_su`),
+  KEY `cancel_from` (`cancel_from`),
+  KEY `cancel_to` (`cancel_to`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='Contains LTP services with an STP cancel (C on CIF)';
+
