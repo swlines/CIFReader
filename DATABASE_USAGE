@@ -1,0 +1,97 @@
+CIF Reader - Database Usage
+--
+
+This files details the database usage, and explains how each field relates to another. The database is largely based on TSDBExplorer, with a few additions to deal with problems arisen from this.
+
+SCHEDULES
+======
+ - uuid, an internal unique identity - this is used elsewhere within the application
+ - train_uid, the internal network rail unique identity
+ - date_from and date_to, self explanatory
+ - runs_mo, runs_tu, runs_we, runs_th, runs_fr, runs_sa, runs_su, boolean as to whether a service operates on this date
+ - bank_hol, bank holiday running info (as per network rail docs)
+ - status, train operational status (as per network rail docs)
+ - category, train category (as per network rail docs)
+ - train_identity, the identity of the train - this is what is commonly known as the headcode (not to be mistaken with next column!)
+ - headcode, an operator set field, seems to be generally set when reservable
+ - service_code, internal rail use for revenue allocation, etc (as per network rail docs)
+ - portion_id, indicates portion of the train - normally blank
+ - power_type, power type (as per network rail docs)
+ - timing_load, timing load (as per network rail docs)
+ - speed, speed at which the path is timed for (as per network rail docs)
+ - operating_characteristics, up to 6 x 1 characters determining characteristics of service (as per network rail docs)
+ - train_class, indicates what classes of travel are on the train (i.e. first/standard) (as per network rail docs)
+ - sleepers, blank if none, if not then shows what sort of sleepers are on service (as per network rail docs)
+ - reservations, reservation type if available (as per network rail docs)
+ - catering_code, catering indicator (as per network rail docs)
+ - service_branding, largely unused now, but... (as per network rail docs)
+ - stp_indicator, blank if you only have LTP (WTT), but as per network rail docs otherwise.
+
+	 THE NEXT ENTRIES ARE FROM THE BX CODE...
+ - uic_code, as per network rail docs
+ - atoc_code, 2 char code that appears on everything - may appear as ZZ
+ - ats_code, if subject to performance monitoring or not (as per network rail docs)
+ - rsid, the rail service id. if this is not in the source data it is calculated if headcode is present.
+ - data_source, not in NR CIF, but is in feeds from RSP. (see their docs)
+ 
+ - created_at and updated_at are present but not currently used.
+ 
+SCHEDULES_STPCANCEL
+======
+ - uuid, this uuid is related to the one in schedules table
+ - cancel_from and cancel_to determine the dates that the schedule is cancelled
+
+LOCATIONS
+======
+ - uuid, this uuid is related to the one in schedules table
+ - location_order, you should run ORDER BY location_order ASC in your results if searching for a schedule, it shows the order of locations
+ - location_type, type of location (i.e. LO, LI or LT)
+ - tiploc_code, the tiploc of the location
+ - tiploc_instance, a suffix that may appear on the tiploc, primarily for associations
+ - arrival, the private arrival time (to half min resolution)
+ - public_arrival, the public arrival time
+ - pass, the passing time (to half min resolution)
+ - departure, the private departure time (to half min resolution)
+ - public_departure, the public departure time
+ - platform, platform number or id (such as BAY)
+ - line, the line the train is going to take
+ - path, the path the train is planned to have taken
+ - engineering_allowance, number of mins allowance here due to engineering (to half min resolution 0-9.5mins, 10-19 integer)
+ - pathing_allowance, as above, except for pathing
+ - performance_allowance, as above, except for performance
+ - activity, activity performed at this locations (as per network rail docs)
+ 
+ - created_at and updated_at are present but not currently used.
+ 
+LOCATIONS_CHANGE
+======
+Most of this table is self explanatory, and is pretty much a clone of schedules, with date features missing, replaced with tiploc and tiploc_instance as per locations table.
+
+TIPLOCS
+======
+ - tiploc, the code that uniquely identifies this location within the schedules
+ - nalco, the NLC for this location
+ - tps_description, english description of the location
+ - stanox, stanox code for location in question
+ - crs, three letter short code typically used by passengers (in NRE, etc) - does contain data for some locs other than stns
+ - description, the description used by LENNON (rail industry ticketing data)
+ 
+ASSOCIATIONS
+======
+ - uuid, the unique code that identifies this ASSOCIATION
+ - main_train_uid, the main train uid (use THIS against train_uid in schedules)
+ - assoc_train_uid, the associated train uid
+ - date_from, the start date of association
+ - date_to, the end date of association
+ - assoc_mo, etc... whether this association applies on this day
+ - category, values JJ, VV or NP as per NR doc
+ - date_indicator, S, N or P as per NR docs
+ - location, the location at which this association takes place
+ - base_location_suffix, the suffix in the base train for this location (on tiploc_instance) (to link it)
+ - assoc_location_suffix, the suffix on the associated train
+ - assoc_type, whether for passenger or operating use only
+ - stp_indicator, as per schedules, blank if LTP data only, C/N/P/O otherwise.
+ 
+ASSOCATIONS_STPCANCEL
+======
+as per schedules_stpcancel, with the associated uuid the one from associations
