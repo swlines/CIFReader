@@ -26,6 +26,7 @@
 #include <errno.h>
 #include <boost/filesystem/operations.hpp>
 #include <boost/filesystem/path.hpp>
+#include <boost/timer.hpp>
 
 using namespace std;
 
@@ -119,6 +120,8 @@ int main(int argc, char *argv[]) {
 		cout << "INFO: Keys have been disabled on tables, they will be re-enabled at the end." << endl;
 	}	
 	
+	boost::timer timer;
+	
 	for(vector<string>::iterator fit = files.begin(); fit < files.end(); ++fit) {
 		/* hack to get around weird seg fault */
 		mysqlpp::Connection connection;
@@ -170,6 +173,8 @@ int main(int argc, char *argv[]) {
 	}
 	
 	directories.clear();
+	
+	cout << "INFO: Execution took " << timer.elapsed() << " seconds " << endl; 
 	
 	if(disableKeys) {
 		cout << "INFO: Now re-enabling keys, this may take up to around 5 minutes..." << endl;
