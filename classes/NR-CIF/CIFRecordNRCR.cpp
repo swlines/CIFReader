@@ -42,23 +42,25 @@ unsigned CIFRecordNRCR::getRecordType() {
 
 CIFRecordNRCR::CIFRecordNRCR(string rec) {
 	tiploc 						= rec.substr(2,  7);
-	tiploc_suffix				= rec.substr(7,  1);
-	category					= rec.substr(8,  2);
-	train_identity				= rec.substr(10, 4);
-	headcode					= rec.substr(14, 4);
-	service_code				= rec.substr(19, 8);
-	portion_id					= rec.substr(27, 1);
-	power_type					= rec.substr(28, 3);
-	timing_load					= rec.substr(31, 4);
-	speed						= rec.substr(35, 3);
-	operating_characteristics	= rec.substr(38, 6);
-	train_class					= rec.substr(44, 1);
-	sleepers					= rec.substr(45, 1);
-	reservations				= rec.substr(46, 1);
-	catering_code				= rec.substr(47, 4);
-	service_branding			= rec.substr(48, 4);
-	uic_code					= rec.substr(56, 5);
-	rsid						= rec.substr(61, 8);
+	tiploc_suffix				= rec.substr(9,  1);
+	category					= rec.substr(10, 2);
+	train_identity				= rec.substr(12, 4);
+	headcode					= rec.substr(16, 4);
+	// ignore course indicator (1)
+	service_code				= rec.substr(21, 8);
+	portion_id					= rec.substr(29, 1);
+	power_type					= rec.substr(30, 3);
+	timing_load					= rec.substr(33, 4);
+	speed						= rec.substr(37, 3);
+	operating_characteristics	= rec.substr(40, 6);
+	train_class					= rec.substr(46, 1);
+	sleepers					= rec.substr(47, 1);
+	reservations				= rec.substr(48, 1);
+	// ignore connection indicator (1)
+	catering_code				= rec.substr(50, 4);
+	service_branding			= rec.substr(54, 4);
+	uic_code					= rec.substr(58, 5);
+	rsid						= rec.substr(63, 8);
 	
 	trim(category);
 	trim(headcode);
