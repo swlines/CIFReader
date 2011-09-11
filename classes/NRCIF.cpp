@@ -160,7 +160,7 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 						string uuid;
 						
 						try {
-							uuid = NRCIF::findUUIDForAssociation(conn, associationDetail, true, false);
+							uuid = NRCIF::findUUIDForAssociation(conn, associationDetail, true, false, false);
 						}
 						catch(int e){
 							cerr << endl << "ERROR: Unable to locate association to delete/amend. Exiting." << endl;
@@ -179,7 +179,7 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 						
 						// find the permament service relating to these dates
 						try {
-							uuid = NRCIF::findUUIDForAssociation(conn, associationDetail, false, true);
+							uuid = NRCIF::findUUIDForAssociation(conn, associationDetail, false, true, false);
 						}
 						catch(int e) {
 							cerr << "ERROR: Unable to locate association to remove STP cancel" << endl;
@@ -238,7 +238,7 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 						// get uuid of service being STP cancelled
 						string uuid;
 						try {
-							uuid = NRCIF::findUUIDForAssociation(conn, associationDetail, false, true);
+							uuid = NRCIF::findUUIDForAssociation(conn, associationDetail, false, true, false);
 						}
 						catch(int e) {
 							cerr << "ERROR: Unable to locate association to STP cancel" << endl;
@@ -307,7 +307,7 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 						string uuid;
 					
 						try {
-							uuid = NRCIF::findUUIDForService(conn, scheduleDetail, true, false);
+							uuid = NRCIF::findUUIDForService(conn, scheduleDetail, true, false, false);
 						}
 						catch(int e) {
 							cerr << "ERROR: Unable to locate service to delete/amend. Exiting." << endl;
@@ -325,7 +325,7 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 						
 						// find the permament service relating to these dates
 						try {
-							uuid = NRCIF::findUUIDForService(conn, scheduleDetail, false, true);
+							uuid = NRCIF::findUUIDForService(conn, scheduleDetail, false, true, false);
 						}
 						catch(int e) {
 							cerr << "ERROR: Unable to locate service to remove STP cancel" << endl;
@@ -457,7 +457,7 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 						// get uuid of service being STP cancelled
 						string uuid;
 						try {
-							uuid = NRCIF::findUUIDForService(conn, scheduleDetail, false, true);
+							uuid = NRCIF::findUUIDForService(conn, scheduleDetail, false, true, false);
 						}
 						catch(int e) {
 							cerr << "ERROR: Unable to locate service to STP cancel" << endl;
@@ -553,7 +553,7 @@ CIFRecord* NRCIF::processLine(string record) {
 	}
 }
 
-string NRCIF::findUUIDForService(mysqlpp::Connection &conn, CIFRecordNRBS *s, bool exact, bool removeDoesntRunOn) {
+string NRCIF::findUUIDForService(mysqlpp::Connection &conn, CIFRecordNRBS *s, bool exact, bool removeDoesntRunOn, bool noDateTo) {
 	mysqlpp::Query query = conn.query();
 	
 	// create string to check runs on dates...
@@ -579,7 +579,7 @@ string NRCIF::findUUIDForService(mysqlpp::Connection &conn, CIFRecordNRBS *s, bo
 	
 	// find this service
 	if(exact) {
-		if(s->date_to != "") {
+		if(s->date_to != "" && !noDateTo) {
 			query << "SELECT uuid FROM schedules WHERE train_uid = " << mysqlpp::quote << s->uid << " AND date_from = " << mysqlpp::quote << s->date_from << " AND date_to = " << mysqlpp::quote << s->date_to << " " << runs_on << " LIMIT 0,1";
 		}
 		else {
@@ -587,7 +587,7 @@ string NRCIF::findUUIDForService(mysqlpp::Connection &conn, CIFRecordNRBS *s, bo
 		}
 	}
 	else {
-		if(s->date_to != "") {
+		if(s->date_to != "" && !noDateTo) {
 			query << "SELECT uuid FROM schedules WHERE train_uid = " << mysqlpp::quote << s->uid << " AND (" << mysqlpp::quote << s->date_from << " BETWEEN date_from AND date_to) AND (" << mysqlpp::quote << s->date_to << " BETWEEN date_from AND date_to) " <<  runs_on << "  LIMIT 0,1"; 
 		}
 		else {
@@ -600,7 +600,10 @@ string NRCIF::findUUIDForService(mysqlpp::Connection &conn, CIFRecordNRBS *s, bo
 			return res[0]["uuid"].c_str();
 		}
 		
-		throw 1;
+		if(!noDateTo)
+			return NRCIF::findUUIDForService(conn, s, exact, removeDoesntRunOn, true);
+		else
+			throw 1;
 	}
 	
 	throw 2;
@@ -637,7 +640,7 @@ void NRCIF::deleteSTPServiceCancellation(mysqlpp::Connection &conn, string uuid,
 	query.execute();
 }
 
-string NRCIF::findUUIDForAssociation(mysqlpp::Connection &conn, CIFRecordNRAA *a, bool exact, bool removeDoesntRunOn) {
+string NRCIF::findUUIDForAssociation(mysqlpp::Connection &conn, CIFRecordNRAA *a, bool exact, bool removeDoesntRunOn, bool noDateTo) {
 	mysqlpp::Query query = conn.query(); 
 	
 	// create string to check assoc on dates...
@@ -663,7 +666,7 @@ string NRCIF::findUUIDForAssociation(mysqlpp::Connection &conn, CIFRecordNRAA *a
 	
 	// find this association
 	if(exact) {
-		if(a->date_to != "") {
+		if(a->date_to != "" && !noDateTo) {
 			query << "SELECT uuid FROM associations WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND date_from = " << mysqlpp::quote << a->date_from << " AND date_to = " << mysqlpp::quote << a->date_to << assoc_on << "  LIMIT 0,1"; 
 		}
 		else {
@@ -671,20 +674,27 @@ string NRCIF::findUUIDForAssociation(mysqlpp::Connection &conn, CIFRecordNRAA *a
 		}
 	}
 	else{
-		if(a->date_to != "") {
+		if(a->date_to != "" && !noDateTo) {
 			query << "SELECT uuid FROM associations WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND (" << mysqlpp::quote << a->date_from << " BETWEEN date_from AND date_to) AND (" << mysqlpp::quote << a->date_to << " BETWEEN date_from AND date_to) " << assoc_on << " LIMIT 0,1"; 
 		}
 		else {
 			query << "SELECT uuid FROM associations WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND (" << mysqlpp::quote << a->date_from << " BETWEEN date_from AND date_to) " << assoc_on << " LIMIT 0,1";
 		}
 	}
-		
+	
+	string queryString = query.str();
+	
 	if(mysqlpp::StoreQueryResult res = query.store()) {
 		if(res.num_rows() > 0) {
 			return res[0]["uuid"].c_str();
 		}
 		
-		throw 1;
+		if(!noDateTo)
+			return NRCIF::findUUIDForAssociation(conn, a, exact, removeDoesntRunOn, true);
+		else {
+			cout << queryString << endl;
+			throw 1;
+		}
 	}
 	
 	throw 2;

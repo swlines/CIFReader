@@ -38,11 +38,11 @@ class NRCIF {
 	private:
 		static CIFRecord* processLine(string record);
 		
-		static string findUUIDForService(mysqlpp::Connection &conn, CIFRecordNRBS *s, bool exact, bool removeDoesntRunOn);
+		static string findUUIDForService(mysqlpp::Connection &conn, CIFRecordNRBS *s, bool exact, bool removeDoesntRunOn, bool noDateTo);
 		static void deleteService(mysqlpp::Connection &conn, string uuid);
 		static void deleteSTPServiceCancellation(mysqlpp::Connection &conn, string uuid, string cancelFrom, string cancelTo);
 		
-		static string findUUIDForAssociation(mysqlpp::Connection &conn, CIFRecordNRAA *a, bool exact, bool removeDoesntRunOn);
+		static string findUUIDForAssociation(mysqlpp::Connection &conn, CIFRecordNRAA *a, bool exact, bool removeDoesntRunOn, bool noDateTo);
 		static void deleteAssociation(mysqlpp::Connection &conn, string uuid);
 		static void deleteSTPAssociationCancellation(mysqlpp::Connection &conn, string uuid, string cancelFrom, string cancelTo);
 };
