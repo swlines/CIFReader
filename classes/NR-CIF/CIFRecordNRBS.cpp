@@ -124,22 +124,6 @@ void CIFRecordNRBS::mergeWithBX(string rec) {
 	trim(atoc_code);
 	trim(rsid);
 	trim(data_source);
-	
-	// by network rails documents, we can automatically calculate the RSID if it is
-	// not populated in the CIF file, in form (atoc_code)(headcode)(portion_id)
-	if(rsid == "") {
-		if(atoc_code != "" && headcode != "") {
-			rsid = atoc_code;
-			rsid += headcode;
-			
-			if(portion_id == "") { 
-				rsid += "00";
-			}
-			else {
-				rsid += "0" + portion_id;
-			}
-		}
-	}
 }
 
 CIFRecordNRBS::~CIFRecordNRBS() {
