@@ -594,6 +594,8 @@ string NRCIF::findUUIDForService(mysqlpp::Connection &conn, CIFRecordNRBS *s, bo
 			query << "SELECT uuid FROM schedules WHERE train_uid = " << mysqlpp::quote << s->uid << " AND (" << mysqlpp::quote << s->date_from << " BETWEEN date_from AND date_to) " << runs_on << " LIMIT 0,1";
 		}
 	}
+	
+	string queryString = query.str();
 		
 	if(mysqlpp::StoreQueryResult res = query.store()) {
 		if(res.num_rows() > 0) {
@@ -602,8 +604,12 @@ string NRCIF::findUUIDForService(mysqlpp::Connection &conn, CIFRecordNRBS *s, bo
 		
 		if(!noDateTo)
 			return NRCIF::findUUIDForService(conn, s, exact, removeDoesntRunOn, true);
-		else
+		else if(noDateTo && !removeDoesntRunOn) 
+			return NRCIF::findUUIDForService(conn, s, exact, true, true);
+		else {
+			cout << endl << queryString << endl;
 			throw 1;
+		}
 	}
 	
 	throw 2;
@@ -691,6 +697,8 @@ string NRCIF::findUUIDForAssociation(mysqlpp::Connection &conn, CIFRecordNRAA *a
 		
 		if(!noDateTo)
 			return NRCIF::findUUIDForAssociation(conn, a, exact, removeDoesntRunOn, true);
+		else if(noDateTo && !removeDoesntRunOn) 
+			return NRCIF::findUUIDForAssociation(conn, a, exact, true, true);
 		else {
 			cout << queryString << endl;
 			throw 1;
