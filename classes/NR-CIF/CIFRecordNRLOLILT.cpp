@@ -53,7 +53,7 @@ CIFRecordNRLOLILT::CIFRecordNRLOLILT(string rec) {
 		engineering_allowance	= rec.substr(25, 2);
 		pathing_allowance		= rec.substr(27, 2);
 		activity				= rec.substr(29,12);
-		performance_allowance	= rec.substr(31, 2);
+		performance_allowance	= rec.substr(41, 2);
 	}
 	else if(record_type == "LI") {
 		arrival					= rec.substr(10, 5);
