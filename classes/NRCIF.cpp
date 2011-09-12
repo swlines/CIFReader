@@ -21,9 +21,6 @@
 // cif related stuff
 #include "NRCIF.h"
 
-// database related stuff
-#include "sqlNetRail.h"
-
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -47,9 +44,7 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 	fileSize = (end - begin);
 	fileCurrent = begin;
 	long displayKb = fileSize / (long)1024;
-	
-	vector<string> errors;
-	
+		
 	if(file.is_open()) {
 		string line;
 		
@@ -100,9 +95,21 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 		
 		mysqlpp::Query query = conn.query();
 		
-		vector<tiplocs> tiplocInsert;
+		// tiplocs
+		vector<tiplocs_t> tiplocInsert;
 		vector<string> tiplocDelete;
 		bool tiplocComplete = false;
+		
+		// associations
+		vector<associations_t> associationInsert;
+		vector<string> associationDelete;
+		bool associationComplete = false;
+		
+		vector<schedules_t> scheduleInsert;
+		vector<locations_t> locationInsert;
+		vector<locations_change_t> locationsChangeInsert;
+		vector<string> scheduleDelete;
+		unsigned scheduleInsNo = 0;
 		
 		while(getline(file, line)) {
 		try{
@@ -128,7 +135,7 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 					}
 				}
 				
-				tiplocInsert.push_back(tiplocs(tiplocRecord->tiploc_code, tiplocRecord->nlc, tiplocRecord->tps_desc, tiplocRecord->stanox, tiplocRecord->crs, tiplocRecord->capri_desc));
+				tiplocInsert.push_back(tiplocs_t(tiplocRecord->tiploc_code, tiplocRecord->nlc, tiplocRecord->tps_desc, tiplocRecord->stanox, tiplocRecord->crs, tiplocRecord->capri_desc));
 			}
 			else if(recordType == 4) { // tiploc delete
 				CIFRecordNRTD *tiplocRecord = (CIFRecordNRTD *)record;
@@ -160,7 +167,7 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 						string uuid;
 						
 						try {
-							uuid = NRCIF::findUUIDForAssociation(conn, associationDetail, true, false, false);
+							uuid = NRCIF::findUUIDForAssociation(conn, associationDetail, true, true, false);
 						}
 						catch(int e){
 							cerr << endl << "ERROR: Unable to locate association to delete/amend. Exiting." << endl;
@@ -169,7 +176,7 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 							return;
 						}
 						
-						NRCIF::deleteAssociation(conn, uuid);
+						associationDelete.push_back(uuid);
 						uuid.clear();
 					}
 					else if(associationDetail->stp_indicator == "C" && associationDetail->transaction_type == "D") {
@@ -198,11 +205,8 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 						// we have all the information we need anyway from this... so just need
 						// to put it in the database
 						
-						try {
-							mysqlpp::Query query = conn.query();
-							
-							// load up the schedule
-							associations row(associationDetail->unique_id,
+
+						associationInsert.push_back(associations_t(associationDetail->unique_id,
 											 associationDetail->main_train_uid,
 											 associationDetail->assoc_train_uid,
 											 mysqlpp::sql_date(associationDetail->date_from),
@@ -220,16 +224,7 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 											 associationDetail->base_location_suffix,
 											 associationDetail->assoc_location_suffix,
 											 associationDetail->assoc_type,
-											 associationDetail->stp_indicator);
-						
-							query.insert(row);
-							query.execute(); 
-						}
-						catch(mysqlpp::BadQuery& e) {
-							cerr << "Error (query): " << e.what() << endl;
-							conn.disconnect();
-							return;
-						}
+											 associationDetail->stp_indicator));
 					}
 					else if(associationDetail->stp_indicator == "C") {
 						// this is a LTP cancellation ... 
@@ -249,7 +244,7 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 						
 						mysqlpp::Query query = conn.query();
 						
-						associations_stpcancel row(uuid, 
+						associations_stpcancel_t row(uuid, 
 												   mysqlpp::sql_date(associationDetail->date_from), 
 												   mysqlpp::sql_date(associationDetail->date_to),
 												   associationDetail->assoc_mo,
@@ -269,28 +264,18 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 			else if(recordType == 6) { // insert
 				// just finish any tiploc stuff... done here as associations aren't guaranteed
 				if(!tiplocComplete) {
-					// delete the old tiplocs
-					vector<string>::iterator dit;
-					for(dit = tiplocDelete.begin(); dit < tiplocDelete.end(); dit++) {
-						query << "DELETE FROM tiplocs WHERE tiploc = " << mysqlpp::quote << *dit;
-						query.execute();
-					}
-					tiplocDelete.clear();
-		
-					// insert the new tiplocs
-					vector<tiplocs>::iterator iit;
-					for(iit = tiplocInsert.begin(); iit < tiplocInsert.end(); iit++) {
-						try {
-							query.insert(*iit);
-							query.execute();
-						}
-						catch(mysqlpp::BadQuery& e) {
-							errors.push_back("INFO: Inserting location error: " + string(e.what()));
-						}
-					}
-					tiplocInsert.clear();
-					
+					NRCIF::runTiploc(conn, tiplocInsert, tiplocDelete);
 					tiplocComplete = true;
+				}
+				
+				if(!associationComplete) {
+					NRCIF::runAssociation(conn, associationInsert, associationDelete);
+					associationComplete = true;
+				}
+				
+				if(scheduleInsNo > 20000) {
+					NRCIF::runSchedules(conn, scheduleInsert, locationInsert, locationsChangeInsert, scheduleDelete);
+					scheduleInsNo = 0;
 				}
 			
 				CIFRecordNRBS *scheduleDetail = (CIFRecordNRBS *)record;
@@ -316,8 +301,9 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 							return;
 						}
 					
-						NRCIF::deleteService(conn, uuid);
+						scheduleDelete.push_back(uuid);
 						uuid.clear();
+						scheduleInsNo++;
 					}
 					else if(scheduleDetail->stp_indicator == "C" && scheduleDetail->transaction_type == "D") {
 						// deletion of an STP cancel...
@@ -347,8 +333,8 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 						scheduleDetail->mergeWithBX(line);
 					
 					// ok set it up and now get schedule locations
-						vector<locations> locs;
-						vector<locations_change> locs_change;
+						vector<locations_t> locs;
+						vector<locations_change_t> locs_change;
 						
 						CIFRecord *schedulerec;
 						int location_order = 0;
@@ -363,16 +349,17 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 							if(schedulerec->getRecordType() == 7) {
 								CIFRecordNRLOLILT *location = (CIFRecordNRLOLILT *)schedulerec;
 								
-								locs.push_back(locations(scheduleDetail->unique_id, location_order, location->record_type, location->tiploc, location->tiploc_instance, location->arrival, location->public_arrival, location->pass, location->departure, location->public_departure, location->platform, location->line, location->path, location->engineering_allowance, location->pathing_allowance, location->performance_allowance, location->activity));
+								locationInsert.push_back(locations_t(scheduleDetail->unique_id, location_order, location->record_type, location->tiploc, location->tiploc_instance, location->arrival, location->public_arrival, location->pass, location->departure, location->public_departure, location->platform, location->line, location->path, location->engineering_allowance, location->pathing_allowance, location->performance_allowance, location->activity));
 							
 								if(location->record_type == "LT") { delete schedulerec; break; }
 								
 								location_order++;
+								scheduleInsNo++;
 							}
 							else if(schedulerec->getRecordType() == 8) {
 								CIFRecordNRCR *cr = (CIFRecordNRCR *)schedulerec;
 								
-								locs_change.push_back(locations_change(scheduleDetail->unique_id, 
+								locationsChangeInsert.push_back(locations_change_t(scheduleDetail->unique_id, 
 																	   cr->tiploc,
 																	   cr->tiploc_suffix,
 																	   cr->category,
@@ -391,6 +378,7 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 																	   cr->service_branding,
 																	   cr->uic_code,
 																	   cr->rsid));
+								scheduleInsNo++;
 							}
 							
 							delete schedulerec;
@@ -400,7 +388,7 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 							mysqlpp::Query query = conn.query();
 							
 							// load up the schedule
-							schedules row(scheduleDetail->unique_id,
+							scheduleInsert.push_back(schedules_t(scheduleDetail->unique_id,
 										  scheduleDetail->uid,
 										  mysqlpp::sql_date(scheduleDetail->date_from),
 										  mysqlpp::sql_date(scheduleDetail->date_to),
@@ -432,17 +420,9 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 										  scheduleDetail->atoc_code,
 										  scheduleDetail->ats_code,
 										  scheduleDetail->rsid,
-										  scheduleDetail->data_source);
-						
-							query.insert(row);
-							query.execute(); 
-						
-							// insert policy for remaining stuff
-							mysqlpp::Query::RowCountInsertPolicy<> insert_policy(1000);
-							query.insertfrom(locs.begin(), locs.end(), insert_policy);
-							query.insertfrom(locs_change.begin(), locs_change.end(), insert_policy);
-							locs.clear(); 
-							locs_change.clear();
+										  scheduleDetail->data_source));
+										  
+							scheduleInsNo++;
 						}
 						catch(mysqlpp::BadQuery& e) {
 							cerr << "Error (query): " << e.what() << endl;
@@ -468,7 +448,7 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 						
 						mysqlpp::Query query = conn.query();
 						
-						schedules_stpcancel row(uuid, 
+						schedules_stpcancel_t row(uuid, 
 												mysqlpp::sql_date(scheduleDetail->date_from), 
 												mysqlpp::sql_date(scheduleDetail->date_to),
 												scheduleDetail->runs_mo,
@@ -491,7 +471,25 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 		
 		progBar += (long)((long)(file.tellg()) - fileCurrent);
 		fileCurrent = file.tellg();
-		}	
+		}
+		
+		if(scheduleInsNo > 0) {
+			NRCIF::runSchedules(conn, scheduleInsert, locationInsert, locationsChangeInsert, scheduleDelete);
+		}
+		
+		cout << endl << "INFO: File complete..." << endl;
+		
+		if(!tiplocComplete) {
+			cout << "INFO: Processing TIPLOCs that weren't completed during run." << endl;
+			NRCIF::runTiploc(conn, tiplocInsert, tiplocDelete);
+			tiplocComplete = true;
+		}
+		
+		if(!associationComplete) {
+			cout << "INFO: Processing associations that weren't completed during run." << endl;
+			NRCIF::runAssociation(conn, associationInsert, associationDelete);
+			associationComplete = true;
+		}
 		
 		delete header;
 	}
@@ -501,20 +499,7 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 		return;
 	}
 	
-	if(errors.size() == 0) {
-		cout << endl << "INFO: File complete..." << endl << endl;
-	}
-	else {
-		cout << endl << "INFO: File complete, but errors occured during processing: " << endl;
-		vector<string>::iterator it;
-		
-		for(it = errors.begin(); it < errors.end(); it++) {
-			cout << *it << endl;
-		}
-		
-		cout << endl;
-		errors.clear();
-	}
+	cout << endl;
 	
 	file.close();	
 }
@@ -553,6 +538,73 @@ CIFRecord* NRCIF::processLine(string record) {
 	}
 }
 
+void NRCIF::runTiploc(mysqlpp::Connection &conn, vector<tiplocs_t> &tiplocInsert, vector<string> &tiplocDelete) {
+	mysqlpp::Query query = conn.query();
+
+	// delete the old tiplocs
+	vector<string>::iterator dit;
+	for(dit = tiplocDelete.begin(); dit < tiplocDelete.end(); dit++) {
+		query << "DELETE FROM tiplocs WHERE tiploc = " << mysqlpp::quote << *dit;
+		query.execute();
+	}
+	tiplocDelete.clear();
+
+	// insert the new tiplocs
+	vector<tiplocs_t>::iterator iit;
+	for(iit = tiplocInsert.begin(); iit < tiplocInsert.end(); iit++) {
+		try {
+			query.insert(*iit);
+			query.execute();
+		}
+		catch(mysqlpp::BadQuery& e) {}
+	}
+	tiplocInsert.clear();
+}
+
+void NRCIF::runAssociation(mysqlpp::Connection &conn, vector<associations_t> &associationInsert, vector<string> &associationDelete) {
+	mysqlpp::Query query = conn.query();
+	
+	// delete the old associations
+	vector<string>::iterator dit;
+	for(dit = associationDelete.begin(); dit < associationDelete.end(); dit++) {
+		query << "DELETE FROM associations WHERE uuid = " << mysqlpp::quote << *dit;
+		query.execute();
+	}
+	associationDelete.clear();
+
+	// insert the new associations
+	vector<associations_t>::iterator iit;
+	for(iit = associationInsert.begin(); iit < associationInsert.end(); iit++) {
+		try {
+			query.insert(*iit);
+			query.execute();
+		}
+		catch(mysqlpp::BadQuery& e) {}
+	}
+	associationInsert.clear();
+}
+
+void NRCIF::runSchedules(mysqlpp::Connection &conn, vector<schedules_t> &scheduleInsert, vector<locations_t> &locationInsert, vector<locations_change_t> &locationsChangeInsert, vector<string> &scheduleDelete) {
+	mysqlpp::Query query = conn.query();
+	
+	// delete the old locations
+	vector<string>::iterator dit;
+	for(dit = scheduleDelete.begin(); dit < scheduleDelete.end(); dit++) {
+		NRCIF::deleteService(conn, *dit);
+	}
+	scheduleDelete.clear();
+	
+	mysqlpp::Query::SizeThresholdInsertPolicy<> insert_policy(5000);
+	query.insertfrom(scheduleInsert.begin(), scheduleInsert.end(), insert_policy);
+	scheduleInsert.clear();
+	
+	query.insertfrom(locationInsert.begin(), locationInsert.end(), insert_policy);
+	locationInsert.clear();
+	
+	query.insertfrom(locationsChangeInsert.begin(), locationsChangeInsert.end(), insert_policy);
+	locationsChangeInsert.clear();
+}
+
 string NRCIF::findUUIDForService(mysqlpp::Connection &conn, CIFRecordNRBS *s, bool exact, bool removeDoesntRunOn, bool noDateTo) {
 	mysqlpp::Query query = conn.query();
 	
@@ -580,18 +632,18 @@ string NRCIF::findUUIDForService(mysqlpp::Connection &conn, CIFRecordNRBS *s, bo
 	// find this service
 	if(exact) {
 		if(s->date_to != "" && !noDateTo) {
-			query << "SELECT uuid FROM schedules WHERE train_uid = " << mysqlpp::quote << s->uid << " AND date_from = " << mysqlpp::quote << s->date_from << " AND date_to = " << mysqlpp::quote << s->date_to << " " << runs_on << " LIMIT 0,1";
+			query << "SELECT uuid FROM schedules_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND date_from = " << mysqlpp::quote << s->date_from << " AND date_to = " << mysqlpp::quote << s->date_to << " " << runs_on << " LIMIT 0,1";
 		}
 		else {
-			query << "SELECT uuid FROM schedules WHERE train_uid = " << mysqlpp::quote << s->uid << " AND date_from = " << mysqlpp::quote << s->date_from << " " << runs_on << " LIMIT 0,1";
+			query << "SELECT uuid FROM schedules_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND date_from = " << mysqlpp::quote << s->date_from << " " << runs_on << " LIMIT 0,1";
 		}
 	}
 	else {
 		if(s->date_to != "" && !noDateTo) {
-			query << "SELECT uuid FROM schedules WHERE train_uid = " << mysqlpp::quote << s->uid << " AND (" << mysqlpp::quote << s->date_from << " BETWEEN date_from AND date_to) AND (" << mysqlpp::quote << s->date_to << " BETWEEN date_from AND date_to) " <<  runs_on << "  LIMIT 0,1"; 
+			query << "SELECT uuid FROM schedules_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND (" << mysqlpp::quote << s->date_from << " BETWEEN date_from AND date_to) AND (" << mysqlpp::quote << s->date_to << " BETWEEN date_from AND date_to) " <<  runs_on << "  LIMIT 0,1"; 
 		}
 		else {
-			query << "SELECT uuid FROM schedules WHERE train_uid = " << mysqlpp::quote << s->uid << " AND (" << mysqlpp::quote << s->date_from << " BETWEEN date_from AND date_to) " << runs_on << " LIMIT 0,1";
+			query << "SELECT uuid FROM schedules_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND (" << mysqlpp::quote << s->date_from << " BETWEEN date_from AND date_to) " << runs_on << " LIMIT 0,1";
 		}
 	}
 	
@@ -620,16 +672,16 @@ string NRCIF::findUUIDForService(mysqlpp::Connection &conn, CIFRecordNRBS *s, bo
 void NRCIF::deleteService(mysqlpp::Connection &conn, string uuid) {
 	mysqlpp::Query query = conn.query();
 	
-	query << "DELETE FROM locations WHERE uuid = " << mysqlpp::quote << uuid;
+	query << "DELETE FROM locations_t WHERE uuid = " << mysqlpp::quote << uuid;
 	query.execute();
 	
-	query << "DELETE FROM locations_change WHERE uuid = " << mysqlpp::quote << uuid;
+	query << "DELETE FROM locations_change_t WHERE uuid = " << mysqlpp::quote << uuid;
 	query.execute();
 	
-	query << "DELETE FROM schedules WHERE uuid = " << mysqlpp::quote << uuid;
+	query << "DELETE FROM schedules_t WHERE uuid = " << mysqlpp::quote << uuid;
 	query.execute();
 	
-	query << "DELETE FROM schedules_stpcancel WHERE uuid = " << mysqlpp::quote << uuid;
+	query << "DELETE FROM schedules_stpcancel_t WHERE uuid = " << mysqlpp::quote << uuid;
 	query.execute();
 }
 
@@ -637,10 +689,10 @@ void NRCIF::deleteSTPServiceCancellation(mysqlpp::Connection &conn, string uuid,
 	mysqlpp::Query query = conn.query();
 	
 	if(cancelTo == "") {
-		query << "DELETE FROM schedules_stpcancel WHERE uuid = " << mysqlpp::quote << uuid << " AND cancel_from = " << mysqlpp::quote << cancelFrom;
+		query << "DELETE FROM schedules_stpcancel_t WHERE uuid = " << mysqlpp::quote << uuid << " AND cancel_from = " << mysqlpp::quote << cancelFrom;
 	}
 	else {
-		query << "DELETE FROM schedules_stpcancel WHERE uuid = " << mysqlpp::quote << uuid << " AND cancel_from = " << mysqlpp::quote << cancelFrom << " AND cancel_to = " << mysqlpp::quote << cancelTo;
+		query << "DELETE FROM schedules_stpcancel_t WHERE uuid = " << mysqlpp::quote << uuid << " AND cancel_from = " << mysqlpp::quote << cancelFrom << " AND cancel_to = " << mysqlpp::quote << cancelTo;
 	}
 	
 	query.execute();
@@ -673,18 +725,18 @@ string NRCIF::findUUIDForAssociation(mysqlpp::Connection &conn, CIFRecordNRAA *a
 	// find this association
 	if(exact) {
 		if(a->date_to != "" && !noDateTo) {
-			query << "SELECT uuid FROM associations WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND date_from = " << mysqlpp::quote << a->date_from << " AND date_to = " << mysqlpp::quote << a->date_to << assoc_on << "  LIMIT 0,1"; 
+			query << "SELECT uuid FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND date_from = " << mysqlpp::quote << a->date_from << " AND date_to = " << mysqlpp::quote << a->date_to << assoc_on << "  LIMIT 0,1"; 
 		}
 		else {
-			query << "SELECT uuid FROM associations WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND date_from = " << mysqlpp::quote << a->date_from << assoc_on << " LIMIT 0,1";
+			query << "SELECT uuid FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND date_from = " << mysqlpp::quote << a->date_from << assoc_on << " LIMIT 0,1";
 		}
 	}
 	else{
 		if(a->date_to != "" && !noDateTo) {
-			query << "SELECT uuid FROM associations WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND (" << mysqlpp::quote << a->date_from << " BETWEEN date_from AND date_to) AND (" << mysqlpp::quote << a->date_to << " BETWEEN date_from AND date_to) " << assoc_on << " LIMIT 0,1"; 
+			query << "SELECT uuid FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND (" << mysqlpp::quote << a->date_from << " BETWEEN date_from AND date_to) AND (" << mysqlpp::quote << a->date_to << " BETWEEN date_from AND date_to) " << assoc_on << " LIMIT 0,1"; 
 		}
 		else {
-			query << "SELECT uuid FROM associations WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND (" << mysqlpp::quote << a->date_from << " BETWEEN date_from AND date_to) " << assoc_on << " LIMIT 0,1";
+			query << "SELECT uuid FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND (" << mysqlpp::quote << a->date_from << " BETWEEN date_from AND date_to) " << assoc_on << " LIMIT 0,1";
 		}
 	}
 	
@@ -711,10 +763,10 @@ string NRCIF::findUUIDForAssociation(mysqlpp::Connection &conn, CIFRecordNRAA *a
 void NRCIF::deleteAssociation(mysqlpp::Connection &conn, string uuid) {
 	mysqlpp::Query query = conn.query();
 	
-	query << "DELETE FROM associations WHERE uuid = " << mysqlpp::quote << uuid;
+	query << "DELETE FROM associations_t WHERE uuid = " << mysqlpp::quote << uuid;
 	query.execute();
 	
-	query << "DELETE FROM associations_stpcancel WHERE uuid = " << mysqlpp::quote << uuid;
+	query << "DELETE FROM associations_stpcancel_t WHERE uuid = " << mysqlpp::quote << uuid;
 	query.execute();
 }
 
@@ -723,10 +775,10 @@ void NRCIF::deleteSTPAssociationCancellation(mysqlpp::Connection &conn, string u
 	mysqlpp::Query query = conn.query();
 	
 	if(cancelTo == "") {
-		query << "DELETE FROM associations_stpcancel WHERE uuid = " << mysqlpp::quote << uuid << " AND cancel_from = " << mysqlpp::quote << cancelFrom;
+		query << "DELETE FROM associations_stpcancel_t WHERE uuid = " << mysqlpp::quote << uuid << " AND cancel_from = " << mysqlpp::quote << cancelFrom;
 	}
 	else {
-		query << "DELETE FROM associations_stpcancel WHERE uuid = " << mysqlpp::quote << uuid << " AND cancel_from = " << mysqlpp::quote << cancelFrom << " AND cancel_to = " << mysqlpp::quote << cancelTo;
+		query << "DELETE FROM associations_stpcancel_t WHERE uuid = " << mysqlpp::quote << uuid << " AND cancel_from = " << mysqlpp::quote << cancelFrom << " AND cancel_to = " << mysqlpp::quote << cancelTo;
 	}
 	
 	query.execute();

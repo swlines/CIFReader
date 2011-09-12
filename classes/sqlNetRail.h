@@ -21,7 +21,7 @@
 #include <mysql++.h>
 #include <ssqls.h>
 
-sql_create_33(schedules, 1, 33,
+sql_create_33(schedules_t, 1, 33,
 	mysqlpp::sql_varchar, uuid,
 	mysqlpp::sql_varchar, train_uid, 
 	mysqlpp::sql_date, date_from,
@@ -56,7 +56,7 @@ sql_create_33(schedules, 1, 33,
 	mysqlpp::sql_varchar, rsid,
 	mysqlpp::sql_varchar, data_source);
 	
-sql_create_10(schedules_stpcancel, 1, 10,
+sql_create_10(schedules_stpcancel_t, 1, 10,
 	mysqlpp::sql_varchar, uuid,
 	mysqlpp::sql_date, cancel_from,
 	mysqlpp::sql_date, cancel_to,
@@ -68,7 +68,7 @@ sql_create_10(schedules_stpcancel, 1, 10,
 	mysqlpp::sql_char, cancel_sa,
 	mysqlpp::sql_char, cancel_su);
 
-sql_create_6(tiplocs, 1, 6,
+sql_create_6(tiplocs_t, 1, 6,
 	mysqlpp::sql_varchar, tiploc,
 	mysqlpp::sql_varchar, nalco,
 	mysqlpp::sql_varchar, tps_description,
@@ -76,7 +76,7 @@ sql_create_6(tiplocs, 1, 6,
 	mysqlpp::sql_varchar, crs,
 	mysqlpp::sql_varchar, description);
 	
-sql_create_17(locations, 1, 17,
+sql_create_17(locations_t, 1, 17,
 	mysqlpp::sql_varchar, uuid,
 	mysqlpp::sql_int, location_order,
 	mysqlpp::sql_char, location_type,
@@ -95,7 +95,7 @@ sql_create_17(locations, 1, 17,
 	mysqlpp::sql_varchar, performance_allowance,
 	mysqlpp::sql_varchar, activity);
 	
-sql_create_19(locations_change, 1, 19,
+sql_create_19(locations_change_t, 1, 19,
 	mysqlpp::sql_varchar, uuid,
 	mysqlpp::sql_varchar, tiploc,
 	mysqlpp::sql_varchar, tiploc_instance,
@@ -116,7 +116,7 @@ sql_create_19(locations_change, 1, 19,
 	mysqlpp::sql_varchar, uic_code,
 	mysqlpp::sql_varchar, rsid);
 
-sql_create_19(associations, 1, 19,
+sql_create_19(associations_t, 1, 19,
 	mysqlpp::sql_varchar, uuid,
 	mysqlpp::sql_varchar, main_train_uid,
 	mysqlpp::sql_varchar, assoc_train_uid,
@@ -137,7 +137,7 @@ sql_create_19(associations, 1, 19,
 	mysqlpp::sql_varchar, assoc_type,
 	mysqlpp::sql_varchar, stp_indicator);
 
-sql_create_10(associations_stpcancel, 1, 10,
+sql_create_10(associations_stpcancel_t, 1, 10,
 	mysqlpp::sql_varchar, uuid,
 	mysqlpp::sql_date, cancel_from,
 	mysqlpp::sql_date, cancel_to,

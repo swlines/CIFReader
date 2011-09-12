@@ -31,7 +31,7 @@
 using namespace std;
 
 int main(int argc, char *argv[]) {	
-	cout << "CIF Explorer - Copyright 2011 Tom Cairns" << endl << 	
+	cout << "CIF Reader - Copyright 2011 Tom Cairns" << endl << 	
 			"This program comes with ABSOLUTELY NO WARRANTY. This is free software and you are " << endl <<
 			"welcome to redistribute it under certain conditions, see LICENCE." << endl << endl;
 	
@@ -96,29 +96,80 @@ int main(int argc, char *argv[]) {
 	
 	mysqlpp::Query query = conn.query();
 	
+	// drop any old tables that might exist
+	query.exec("DROP TABLE IF EXISTS associations_old, associations_stpcancel_old, locations_old, locations_change_old, schedules_old, schedules_stpcancel_old, tiplocs_old");
+	
+	// ok, we are now going to begin the actual processing by creating temporary tables
+	cout << "INFO: Creating temporary tables..." << endl;
+	
 	if(truncateTables) {
-		query.exec("TRUNCATE TABLE associations;");
-		query.exec("TRUNCATE TABLE associations_stpcancel;");
-		query.exec("TRUNCATE TABLE locations;");
-		query.exec("TRUNCATE TABLE locations_change;");
-		query.exec("TRUNCATE TABLE schedules;");
-		query.exec("TRUNCATE TABLE schedules_stpcancel;");
-		query.exec("TRUNCATE TABLE tiplocs;");
+		query.exec("CREATE TABLE associations_t LIKE associations");
+		query.exec("CREATE TABLE associations_stpcancel_t LIKE associations_stpcancel");
+		query.exec("CREATE TABLE locations_t LIKE locations");
 		
-		cout << "INFO: Tables have been emptied." << endl;
+		if(disableKeys) {
+			query.exec("ALTER TABLE locations_t DROP INDEX `tiploc_code`, DROP INDEX `arrival`,DROP INDEX `public_arrival`,DROP INDEX `pass`, DROP INDEX `departure`,DROP INDEX `public_departure`, DROP INDEX `uuid`");
+		}
+		else {
+			query.exec("ALTER TABLE locations_t DROP INDEX `tiploc_code`, DROP INDEX `arrival`, DROP INDEX `public_arrival`, DROP INDEX `pass`, DROP INDEX `departure`, DROP INDEX `public_departure`");
+		}
+		
+		query.exec("CREATE TABLE locations_change_t LIKE locations_change");
+		query.exec("CREATE TABLE schedules_t LIKE schedules");
+		query.exec("CREATE TABLE schedules_stpcancel_t LIKE schedules_stpcancel");
+		query.exec("CREATE TABLE tiplocs_t LIKE tiplocs");
+	}
+	else {
+		cout << "INFO: Inserting associations into temporary table..." << endl;
+		query.exec("CREATE TABLE associations_t LIKE associations");
+		query.exec("INSERT INTO associations_t SELECT * FROM associations");
+		
+		cout << "INFO: Inserting associations_stpcancel into temporary table..." << endl;
+		query.exec("CREATE TABLE associations_stpcancel_t LIKE associations_stpcancel");
+		query.exec("INSERT INTO associations_stpcancel_t SELECT * FROM associations_stpcancel");
+		
+		cout << "INFO: Inserting locations into temporary table..." << endl;
+		query.exec("CREATE TABLE locations_t SELECT * FROM locations"); // temp locations
+		
+		if(!disableKeys) {
+			cout << "INFO: Generating UUID key on locations_t" << endl;
+			query.exec("ALTER TABLE locations_t ADD INDEX (`uuid`)");
+		}
+		
+		cout << "INFO: Inserting locations_change into temporary table..." << endl;
+		query.exec("CREATE TABLE locations_change_t LIKE locations_change");
+		query.exec("INSERT INTO locations_change_t SELECT * FROM locations_change");
+		
+		cout << "INFO: Inserting schedules into temporary table..." << endl;
+		query.exec("CREATE TABLE schedules_t LIKE schedules");
+		query.exec("INSERT INTO schedules_t SELECT * FROM schedules");
+		
+		cout << "INFO: Inserting schedules_stpcancel into temporary table..." << endl;
+		query.exec("CREATE TABLE schedules_stpcancel_t LIKE schedules_stpcancel");
+		query.exec("INSERT INTO schedules_stpcancel_t SELECT * FROM schedules_stpcancel");
+		
+		cout << "INFO: Inserting tiplocs into temporary table..." << endl;
+		query.exec("CREATE TABLE tiplocs_t LIKE tiplocs");
+		query.exec("INSERT INTO tiplocs_t SELECT * FROM tiplocs");
 	}
 	
+	cout << "INFO: Temporary tables created..." << endl;
+	
 	if(disableKeys) {
-		query.exec("ALTER TABLE associations DISABLE KEYS;");
-		query.exec("ALTER TABLE associations_stpcancel DISABLE KEYS;");
-		query.exec("ALTER TABLE locations DISABLE KEYS;");
-		query.exec("ALTER TABLE locations_change DISABLE KEYS;");
-		query.exec("ALTER TABLE schedules DISABLE KEYS;");
-		query.exec("ALTER TABLE schedules_stpcancel DISABLE KEYS;");
-		query.exec("ALTER TABLE tiplocs DISABLE KEYS;");
+		query.exec("ALTER TABLE associations_t DISABLE KEYS;");
+		query.exec("ALTER TABLE associations_stpcancel_t DISABLE KEYS;");
+		// locations won't have its keys disabled here as there won't be any!
+		query.exec("ALTER TABLE locations_change_t DISABLE KEYS;");
+		query.exec("ALTER TABLE schedules_t DISABLE KEYS;");
+		query.exec("ALTER TABLE schedules_stpcancel_t DISABLE KEYS;");
+		query.exec("ALTER TABLE tiplocs_t DISABLE KEYS;");
 		
 		cout << "INFO: Keys have been disabled on tables, they will be re-enabled at the end." << endl;
 	}	
+	
+	// at this point, all tables have their keys as per normal EXCEPT locations which 
+	//   if disableKeys = TRUE, then has no keys
+	//   else                   has a uuid key
 		
 	for(vector<string>::iterator fit = files.begin(); fit < files.end(); ++fit) {
 		/* hack to get around weird seg fault */
@@ -127,6 +178,8 @@ int main(int argc, char *argv[]) {
 			cerr << "DB connection failed:" << conn.error() << endl;
 			return 1;
 		}
+		
+		connection.set_option(new mysqlpp::MultiStatementsOption(true));
 			
 		if(networkRailCIF){
 			NRCIF::processFile(connection, (*fit).c_str());
@@ -160,6 +213,8 @@ int main(int argc, char *argv[]) {
 				return 1;
 			}
 			
+			connection.set_option(new mysqlpp::MultiStatementsOption(true));
+			
 			if(networkRailCIF){
 				NRCIF::processFile(connection, (*it).c_str());
 			}
@@ -175,28 +230,39 @@ int main(int argc, char *argv[]) {
 	if(disableKeys) {
 		cout << "INFO: Now re-enabling keys, this may take up to around 5 minutes..." << endl;
 		cout << "INFO: Enabling keys on associations..." << endl;
-		query.exec("ALTER TABLE associations ENABLE KEYS;");
+		query.exec("ALTER TABLE associations_t ENABLE KEYS;");
 		
 		cout << "INFO: Enabling keys on associations_stpcancel..." << endl;
-		query.exec("ALTER TABLE associations_stpcancel ENABLE KEYS;");
-		
-		cout << "INFO: Enabling keys on locations..." << endl;
-		query.exec("ALTER TABLE locations ENABLE KEYS;");
+		query.exec("ALTER TABLE associations_stpcancel_t ENABLE KEYS;");
 		
 		cout << "INFO: Enabling keys on locations_change..." << endl;
-		query.exec("ALTER TABLE locations_change ENABLE KEYS;");
+		query.exec("ALTER TABLE locations_change_t ENABLE KEYS;");
 		
 		cout << "INFO: Enabling keys on schedules..." << endl;
-		query.exec("ALTER TABLE schedules ENABLE KEYS;");
+		query.exec("ALTER TABLE schedules_t ENABLE KEYS;");
 		
 		cout << "INFO: Enabling keys on schedules_stpcancel..." << endl;
-		query.exec("ALTER TABLE schedules_stpcancel ENABLE KEYS;");
+		query.exec("ALTER TABLE schedules_stpcancel_t ENABLE KEYS;");
 		
 		cout << "INFO: Enabling keys on tiplocs..." << endl;
-		query.exec("ALTER TABLE tiplocs ENABLE KEYS;");
+		query.exec("ALTER TABLE tiplocs_t ENABLE KEYS;");
 		
 		cout << "INFO: Complete, all keys re-enabled and recalculated." << endl;
 	}
+	
+	cout << "INFO: Adding keys on locations (temp table) - may take a while..." << endl;
+	if(disableKeys) {
+		query.exec("ALTER TABLE locations_t ADD INDEX (`uuid`), ADD INDEX (`tiploc_code`), ADD INDEX (`arrival`), ADD INDEX  (`public_arrival`), ADD INDEX (`pass`), ADD INDEX (`departure`), ADD INDEX (`public_departure`)");
+	}
+	else {
+		query.exec("ALTER TABLE locations_t ADD INDEX (`tiploc_code`), ADD INDEX (`arrival`), ADD INDEX (`public_arrival`), ADD INDEX (`pass`), ADD INDEX (`departure`), ADD INDEX (`public_departure`)");
+	}
+	
+	cout << "INFO: Completed adding keys on locations" << endl;
+	
+	cout << "INFO: Now moving current tables out of the way..." << endl;
+	query.exec("RENAME TABLE associations TO associations_old, associations_t TO associations, associations_stpcancel TO associations_stpcancel_old, associations_stpcancel_t TO associations_stpcancel, locations_change TO locations_change_old, locations_change_t TO locations_change, schedules TO schedules_old, schedules_t TO schedules, schedules_stpcancel TO schedules_stpcancel_old, schedules_stpcancel_t TO schedules_stpcancel, tiplocs TO tiplocs_old, tiplocs_t TO tiplocs, locations TO locations_old, locations_t TO locations");
+	cout << "INFO: Tables out of the way, finished!" << endl;
 	
 	conn.disconnect();
 	
