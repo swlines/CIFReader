@@ -111,6 +111,9 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 		vector<string> scheduleDelete;
 		unsigned scheduleInsNo = 0;
 		
+		vector<CIFRecordNRBS *> scheduleSTPCancelDelete;
+		vector<CIFRecordNRBS *> scheduleSTPCancelInsert;
+		
 		while(getline(file, line)) {
 		try{
 			record = NRCIF::processLine(line);
@@ -284,17 +287,11 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 				
 				if(scheduleInsNo > 20000) {
 					NRCIF::runSchedules(conn, scheduleInsert, locationInsert, locationsChangeInsert, scheduleDelete);
+					NRCIF::runSchedulesStpCancel(conn, scheduleSTPCancelDelete, scheduleSTPCancelInsert);
 					scheduleInsNo = 0;
 				}
 			
 				CIFRecordNRBS *scheduleDetail = (CIFRecordNRBS *)record;
-				
-				// stp indicator is C, therefore it will want to do a search, so vent all the current
-				// stuff to update in...
-				if(scheduleDetail->stp_indicator == "C") {
-					NRCIF::runSchedules(conn, scheduleInsert, locationInsert, locationsChangeInsert, scheduleDelete);
-					scheduleInsNo = 0;
-				}
 				
 				if(scheduleDetail->transaction_type == "R" || scheduleDetail->transaction_type == "D") {
 					if(header->update_type == "F") {
@@ -323,21 +320,10 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 					}
 					else if(scheduleDetail->stp_indicator == "C" && scheduleDetail->transaction_type == "D") {
 						// deletion of an STP cancel...
-						string uuid;
-						
-						// find the permament service relating to these dates
-						try {
-							uuid = NRCIF::findUUIDForService(conn, scheduleDetail, false, true, false);
-						}
-						catch(int e) {
-							cerr << "ERROR: Unable to locate service to remove STP cancel" << endl;
-							delete record;
-							conn.disconnect();
-							return false;
-						}
-						
-						NRCIF::deleteSTPServiceCancellation(conn, uuid, scheduleDetail->date_from, scheduleDetail->date_to);
-						uuid.clear();
+						// push back into vector
+						scheduleSTPCancelDelete.push_back(scheduleDetail);
+						scheduleInsNo++;
+						continue; // so it doesn't get deleted
 					}
 				}
 									
@@ -450,42 +436,19 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 						// this is a STP CAN of LTP schedule
 						// locate the uuid of the service being cancelled...
 						
-						// get uuid of service being STP cancelled
-						string uuid;
-						try {
-							// temporarily update service to find the schedule to cancel
-							scheduleDetail->stp_indicator = "P";
-							uuid = NRCIF::findUUIDForService(conn, scheduleDetail, false, true, false);
-							scheduleDetail->stp_indicator = "C";
-						}
-						catch(int e) {
-							cerr << "ERROR: Unable to locate service to STP cancel" << endl;
-							delete record;
-							conn.disconnect();
-							return false;
-						}
-						
-						mysqlpp::Query query = conn.query();
-						
-						schedules_stpcancel_t row(uuid, 
-												mysqlpp::sql_date(scheduleDetail->date_from), 
-												mysqlpp::sql_date(scheduleDetail->date_to),
-												scheduleDetail->runs_mo,
-												scheduleDetail->runs_tu,
-												scheduleDetail->runs_we,
-												scheduleDetail->runs_th,
-												scheduleDetail->runs_fr,
-												scheduleDetail->runs_sa,
-												scheduleDetail->runs_su);
-						
-						query.insert(row);
-						query.execute();
-						uuid.clear();
+						// load this record up into the vector
+						scheduleSTPCancelInsert.push_back(scheduleDetail);
+						scheduleInsNo++;
+						continue; // to stop record deletion
 					} 
 				}
 			}
 			
-		}catch(int e){ continue; } 
+		}catch(int e){ 
+			progBar += (long)((long)(file.tellg()) - fileCurrent);
+			fileCurrent = file.tellg();
+			continue; 
+		} 
 		delete record; 
 		
 		progBar += (long)((long)(file.tellg()) - fileCurrent);
@@ -494,6 +457,7 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 		
 		if(scheduleInsNo > 0) {
 			NRCIF::runSchedules(conn, scheduleInsert, locationInsert, locationsChangeInsert, scheduleDelete);
+			NRCIF::runSchedulesStpCancel(conn, scheduleSTPCancelDelete, scheduleSTPCancelInsert);
 		}
 		
 		cout << endl << "INFO: File complete..." << endl;
@@ -623,6 +587,73 @@ void NRCIF::runSchedules(mysqlpp::Connection &conn, vector<schedules_t> &schedul
 	
 	query.insertfrom(locationsChangeInsert.begin(), locationsChangeInsert.end(), insert_policy);
 	locationsChangeInsert.clear();
+}
+
+void NRCIF::runSchedulesStpCancel(mysqlpp::Connection &conn, vector<CIFRecordNRBS *> &scheduleSTPCancelDelete, vector<CIFRecordNRBS *> &scheduleSTPCancelInsert) {
+	mysqlpp::Query query = conn.query();
+	
+	string uuid;
+	CIFRecordNRBS *scheduleDetail;
+	
+	// run the schedule delete
+	vector<CIFRecordNRBS *>::iterator dit;
+	for(dit = scheduleSTPCancelDelete.begin(); dit < scheduleSTPCancelDelete.end(); dit++) {	
+		scheduleDetail = *dit;
+		
+		// find the permament service relating to these dates
+		try {
+			uuid = NRCIF::findUUIDForService(conn, scheduleDetail, false, true, false);
+		}
+		catch(int e) {
+			cerr << "ERROR: Unable to locate service to remove STP cancel" << endl;
+			delete scheduleDetail;
+			conn.disconnect();
+			return;
+		}
+		
+		NRCIF::deleteSTPServiceCancellation(conn, uuid, scheduleDetail->date_from, scheduleDetail->date_to);
+		delete scheduleDetail;
+		uuid.clear();
+	}
+	scheduleSTPCancelDelete.clear();
+	
+	vector<schedules_stpcancel_t> schedules_stp;
+	vector <CIFRecordNRBS *>::iterator iit;
+	for(iit = scheduleSTPCancelInsert.begin(); iit < scheduleSTPCancelInsert.end(); iit++) {
+		scheduleDetail = *iit;
+		
+		try {
+			// temporarily update service to find the schedule to cancel
+			scheduleDetail->stp_indicator = "P";
+			uuid = NRCIF::findUUIDForService(conn, scheduleDetail, false, true, false);
+			scheduleDetail->stp_indicator = "C";
+		}
+		catch(int e) {
+			cerr << "ERROR: Unable to locate service to STP cancel" << endl;
+			delete scheduleDetail;
+			conn.disconnect();
+			return;
+		}
+				
+		schedules_stp.push_back(schedules_stpcancel_t(uuid, 
+								mysqlpp::sql_date(scheduleDetail->date_from), 
+								mysqlpp::sql_date(scheduleDetail->date_to),
+								scheduleDetail->runs_mo,
+								scheduleDetail->runs_tu,
+								scheduleDetail->runs_we,
+								scheduleDetail->runs_th,
+								scheduleDetail->runs_fr,
+								scheduleDetail->runs_sa,
+								scheduleDetail->runs_su));
+								
+		delete scheduleDetail;
+		uuid.clear();
+	}
+	scheduleSTPCancelInsert.clear();
+	
+	mysqlpp::Query::SizeThresholdInsertPolicy<> insert_policy(5000);
+	query.insertfrom(schedules_stp.begin(), schedules_stp.end(), insert_policy);
+	schedules_stp.clear();
 }
 
 string NRCIF::findUUIDForService(mysqlpp::Connection &conn, CIFRecordNRBS *s, bool exact, bool removeDoesntRunOn, bool noDateTo) {

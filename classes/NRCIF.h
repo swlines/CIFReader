@@ -42,6 +42,7 @@ class NRCIF {
 		static void runTiploc(mysqlpp::Connection &conn, vector<tiplocs_t> &tiplocInsert, vector<string> &tiplocDelete);
 		static void runAssociation(mysqlpp::Connection &conn, vector<associations_t> &associationInsert, vector<string> &associationDelete);
 		static void runSchedules(mysqlpp::Connection &conn, vector<schedules_t> &scheduleInsert, vector<locations_t> &locationInsert, vector<locations_change_t> &locationsChangeInsert, vector<string> &scheduleDelete);
+		static void runSchedulesStpCancel(mysqlpp::Connection &conn, vector<CIFRecordNRBS *> &scheduleSTPCancelDelete, vector<CIFRecordNRBS *> &scheduleSTPCancelInsert);
 		
 		static string findUUIDForService(mysqlpp::Connection &conn, CIFRecordNRBS *s, bool exact, bool removeDoesntRunOn, bool noDateTo);
 		static void deleteService(mysqlpp::Connection &conn, string uuid);
