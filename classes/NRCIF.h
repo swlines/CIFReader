@@ -35,7 +35,7 @@ using namespace std;
 
 class NRCIF {
 	public:
-		static void processFile(mysqlpp::Connection &conn, const char* filePath);
+		static bool processFile(mysqlpp::Connection &conn, const char* filePath);
 		
 	private:
 		static CIFRecord* processLine(string record);

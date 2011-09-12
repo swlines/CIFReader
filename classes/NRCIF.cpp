@@ -31,7 +31,7 @@
 using namespace std;
 using namespace boost;
 
-void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
+bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 	ifstream file;
 	file.open(filePath, ifstream::in);
 	
@@ -64,7 +64,7 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 			}
 			
 			conn.disconnect();
-			return;
+			return false;
 		}
 		
 		CIFRecordNRHD *header; 
@@ -76,7 +76,7 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 			delete record;
 			cerr << "Unable to process " << filePath << " as it is not a valid CIF" << endl;
 			conn.disconnect();
-			return;
+			return false;
 		}
 		
 		cout << "===========================================================" << endl;
@@ -124,7 +124,7 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 						cerr << endl << "ERROR: TIPLOC AMEND record appeared in a full update. Exiting." << endl;
 						delete record;
 						conn.disconnect();
-						return;
+						return false;
 					}
 					
 					if(recordType == 2) {
@@ -147,7 +147,7 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 					cerr << endl << "ERROR: TIPLOC DELETE record appeared in a full update. Exiting." << endl;
 					delete record;
 					conn.disconnect();
-					return;
+					return false;
 				}
 			}
 			else if(recordType == 5) { // associations
@@ -159,7 +159,7 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 						cerr << endl << "ERROR: ASSOCIATION REVISE/DELETE record appeared in a full update. Exiting." << endl;
 						delete record;
 						conn.disconnect();
-						return;
+						return false;
 					}
 					
 					if(associationDetail->stp_indicator != "C") {
@@ -173,7 +173,7 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 							cerr << endl << "ERROR: Unable to locate association to delete/amend. Exiting." << endl;
 							delete record;
 							conn.disconnect();
-							return;
+							return false;
 						}
 						
 						associationDelete.push_back(uuid);
@@ -192,7 +192,7 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 							cerr << "ERROR: Unable to locate association to remove STP cancel" << endl;
 							delete record;
 							conn.disconnect();
-							return;
+							return false;
 						}
 						
 						NRCIF::deleteSTPAssociationCancellation(conn, uuid, associationDetail->date_from, associationDetail->date_to);
@@ -239,7 +239,7 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 							cerr << "ERROR: Unable to locate association to STP cancel" << endl;
 							delete record;
 							conn.disconnect();
-							return;
+							return false;
 						}
 						
 						mysqlpp::Query query = conn.query();
@@ -285,7 +285,7 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 						cerr << endl << "ERROR: SCHEDULE REVISE/DELETE record appeared in a full update. Exiting." << endl;
 						delete record;
 						conn.disconnect();
-						return;
+						return false;
 					}
 					
 					if(scheduleDetail->stp_indicator != "C") { // deletion of a non STP cancel.
@@ -298,7 +298,7 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 							cerr << "ERROR: Unable to locate service to delete/amend. Exiting." << endl;
 							delete record;
 							conn.disconnect();
-							return;
+							return false;
 						}
 					
 						scheduleDelete.push_back(uuid);
@@ -317,7 +317,7 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 							cerr << "ERROR: Unable to locate service to remove STP cancel" << endl;
 							delete record;
 							conn.disconnect();
-							return;
+							return false;
 						}
 						
 						NRCIF::deleteSTPServiceCancellation(conn, uuid, scheduleDetail->date_from, scheduleDetail->date_to);
@@ -427,7 +427,7 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 						catch(mysqlpp::BadQuery& e) {
 							cerr << "Error (query): " << e.what() << endl;
 							conn.disconnect();
-							return;
+							return false;
 						}
 					}
 					else if(scheduleDetail->stp_indicator == "C") {
@@ -443,7 +443,7 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 							cerr << "ERROR: Unable to locate service to STP cancel" << endl;
 							delete record;
 							conn.disconnect();
-							return;
+							return false;
 						}
 						
 						mysqlpp::Query query = conn.query();
@@ -496,12 +496,13 @@ void NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 	else {
 		cout << "ERROR: Cannot open file (" << filePath << "), moving on..." << endl;
 		file.close();
-		return;
+		return false;
 	}
 	
 	cout << endl;
 	
-	file.close();	
+	file.close();
+	return true;
 }
 
 CIFRecord* NRCIF::processLine(string record) {
@@ -632,15 +633,15 @@ string NRCIF::findUUIDForService(mysqlpp::Connection &conn, CIFRecordNRBS *s, bo
 	// find this service
 	if(exact) {
 		if(s->date_to != "" && !noDateTo) {
-			query << "SELECT uuid FROM schedules_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND date_from = " << mysqlpp::quote << s->date_from << " AND date_to = " << mysqlpp::quote << s->date_to << " " << runs_on << " LIMIT 0,1";
+			query << "SELECT uuid FROM schedules_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND date_from = " << mysqlpp::quote << s->date_from << " AND date_to = " << mysqlpp::quote << s->date_to << " " << runs_on << " AND stp_indicator = " << mysqlpp:quote <<  s->stp_indicator << " LIMIT 0,1";
 		}
 		else {
-			query << "SELECT uuid FROM schedules_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND date_from = " << mysqlpp::quote << s->date_from << " " << runs_on << " LIMIT 0,1";
+			query << "SELECT uuid FROM schedules_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND date_from = " << mysqlpp::quote << s->date_from << " " << runs_on << " AND stp_indicator = " << mysqlpp:quote <<  s->stp_indicator << " LIMIT 0,1";
 		}
 	}
 	else {
 		if(s->date_to != "" && !noDateTo) {
-			query << "SELECT uuid FROM schedules_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND (" << mysqlpp::quote << s->date_from << " BETWEEN date_from AND date_to) AND (" << mysqlpp::quote << s->date_to << " BETWEEN date_from AND date_to) " <<  runs_on << "  LIMIT 0,1"; 
+			query << "SELECT uuid FROM schedules_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND (" << mysqlpp::quote << s->date_from << " BETWEEN date_from AND date_to) AND (" << mysqlpp::quote << s->date_to << " BETWEEN date_from AND date_to) " <<  runs_on << " LIMIT 0,1"; 
 		}
 		else {
 			query << "SELECT uuid FROM schedules_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND (" << mysqlpp::quote << s->date_from << " BETWEEN date_from AND date_to) " << runs_on << " LIMIT 0,1";
@@ -725,10 +726,10 @@ string NRCIF::findUUIDForAssociation(mysqlpp::Connection &conn, CIFRecordNRAA *a
 	// find this association
 	if(exact) {
 		if(a->date_to != "" && !noDateTo) {
-			query << "SELECT uuid FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND date_from = " << mysqlpp::quote << a->date_from << " AND date_to = " << mysqlpp::quote << a->date_to << assoc_on << "  LIMIT 0,1"; 
+			query << "SELECT uuid FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND date_from = " << mysqlpp::quote << a->date_from << " AND date_to = " << mysqlpp::quote << a->date_to << assoc_on << " AND stp_indicator = " << mysqlpp:quote <<  s->stp_indicator << "  LIMIT 0,1"; 
 		}
 		else {
-			query << "SELECT uuid FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND date_from = " << mysqlpp::quote << a->date_from << assoc_on << " LIMIT 0,1";
+			query << "SELECT uuid FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND date_from = " << mysqlpp::quote << a->date_from << assoc_on << " AND stp_indicator = " << mysqlpp:quote <<  s->stp_indicator << " LIMIT 0,1";
 		}
 	}
 	else{

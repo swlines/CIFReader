@@ -97,7 +97,7 @@ int main(int argc, char *argv[]) {
 	mysqlpp::Query query = conn.query();
 	
 	// drop any old tables that might exist
-	query.exec("DROP TABLE IF EXISTS associations_old, associations_stpcancel_old, locations_old, locations_change_old, schedules_old, schedules_stpcancel_old, tiplocs_old");
+	query.exec("DROP TABLE IF EXISTS associations_old, associations_stpcancel_old, locations_old, locations_change_old, schedules_old, schedules_stpcancel_old, tiplocs_old, associations_t, associations_stpcancel_t, locations_t, locations_change_t, schedules_t, schedules_stpcancel_t, tiplocs_t");
 	
 	// ok, we are now going to begin the actual processing by creating temporary tables
 	cout << "INFO: Creating temporary tables..." << endl;
@@ -170,7 +170,9 @@ int main(int argc, char *argv[]) {
 	// at this point, all tables have their keys as per normal EXCEPT locations which 
 	//   if disableKeys = TRUE, then has no keys
 	//   else                   has a uuid key
-		
+	
+	boolean operationFailed = false;
+	
 	for(vector<string>::iterator fit = files.begin(); fit < files.end(); ++fit) {
 		/* hack to get around weird seg fault */
 		mysqlpp::Connection connection;
@@ -182,7 +184,11 @@ int main(int argc, char *argv[]) {
 		connection.set_option(new mysqlpp::MultiStatementsOption(true));
 			
 		if(networkRailCIF){
-			NRCIF::processFile(connection, (*fit).c_str());
+			if(!NRCIF::processFile(connection, (*fit).c_str())) {
+				operationFailed = true;
+				connection.disconnect();
+				break;
+			}
 		}
 		else {}
 		
@@ -191,41 +197,54 @@ int main(int argc, char *argv[]) {
 	
 	files.clear();
 	
-	for(vector<string>::iterator dit = directories.begin(); dit < directories.end(); ++dit) {
-		boost::filesystem::directory_iterator end_itr;
-		string filePath = *dit;
-		if(filePath.substr(filePath.length() -1, 1) != "/") filePath += "/";
-		
-		set<string> filePaths;
-		
-		for(boost::filesystem::directory_iterator itr(*dit); itr != end_itr; ++itr) {
-			if(boost::filesystem::is_directory(*itr)) continue;
-			else if(boost::filesystem::exists(*itr)) {
-				filePaths.insert(filePath + itr->leaf());
+	if(!operationFailed) {
+		for(vector<string>::iterator dit = directories.begin(); dit < directories.end(); ++dit) {
+			boost::filesystem::directory_iterator end_itr;
+			string filePath = *dit;
+			if(filePath.substr(filePath.length() -1, 1) != "/") filePath += "/";
+			
+			set<string> filePaths;
+			
+			for(boost::filesystem::directory_iterator itr(*dit); itr != end_itr; ++itr) {
+				if(boost::filesystem::is_directory(*itr)) continue;
+				else if(boost::filesystem::exists(*itr)) {
+					filePaths.insert(filePath + itr->leaf());
+				}
 			}
+			
+			for(set<string>::iterator it = filePaths.begin(); it != filePaths.end(); it++) {
+				/* hack to get around weird seg fault */
+				mysqlpp::Connection connection;
+				if(!connection.connect(sqlDatabase, sqlServer, sqlUsername, sqlPassword)) {
+					cerr << "DB connection failed:" << conn.error() << endl;
+					return 1;
+				}
+				
+				connection.set_option(new mysqlpp::MultiStatementsOption(true));
+				
+				if(networkRailCIF){
+					if(!NRCIF::processFile(connection, (*it).c_str())) {
+						operationFailed = true;
+						connection.disconnect();
+						break;
+					}
+				}
+				
+				connection.disconnect();
+			}
+			
+			filePaths.clear();
 		}
-		
-		for(set<string>::iterator it = filePaths.begin(); it != filePaths.end(); it++) {
-			/* hack to get around weird seg fault */
-			mysqlpp::Connection connection;
-			if(!connection.connect(sqlDatabase, sqlServer, sqlUsername, sqlPassword)) {
-				cerr << "DB connection failed:" << conn.error() << endl;
-				return 1;
-			}
-			
-			connection.set_option(new mysqlpp::MultiStatementsOption(true));
-			
-			if(networkRailCIF){
-				NRCIF::processFile(connection, (*it).c_str());
-			}
-			
-			connection.disconnect();
-		}
-		
-		filePaths.clear();
 	}
 	
 	directories.clear();
+	
+	// check failure...
+	if(operationFailed) {
+		cout << "ERROR: Failure has taken place. Update will not be completed..." << endl;
+		conn.disconnect();
+		return 1;
+	}
 	
 	if(disableKeys) {
 		cout << "INFO: Now re-enabling keys, this may take up to around 5 minutes..." << endl;
