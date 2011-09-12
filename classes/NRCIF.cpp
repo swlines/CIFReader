@@ -660,7 +660,7 @@ string NRCIF::findUUIDForService(mysqlpp::Connection &conn, CIFRecordNRBS *s, bo
 		else if(noDateTo && !removeDoesntRunOn) 
 			return NRCIF::findUUIDForService(conn, s, exact, true, true);
 		else {
-			cout << endl << queryString << endl;
+			cout << endl << "Error query: " << queryString << endl;
 			throw 1;
 		}
 	}
@@ -753,7 +753,7 @@ string NRCIF::findUUIDForAssociation(mysqlpp::Connection &conn, CIFRecordNRAA *a
 		else if(noDateTo && !removeDoesntRunOn) 
 			return NRCIF::findUUIDForAssociation(conn, a, exact, true, true);
 		else {
-			cout << queryString << endl;
+			cout << endl << "Error query: " << queryString << endl;
 			throw 1;
 		}
 	}
