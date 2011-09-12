@@ -38,6 +38,7 @@ int main(int argc, char *argv[]) {
 	bool truncateTables = false;
 	bool networkRailCIF = true;
 	bool disableKeys = false;
+	bool disableImportantKeys = true;
 	vector<string> files;
 	vector<string> directories;
 	int fileStatus;
@@ -57,8 +58,11 @@ int main(int argc, char *argv[]) {
 		else if(arg == "-k" || arg == "--disable-keys") {
 			disableKeys = true;
 		}
+		else if(arg == "-d" || arg == "--do-not-disable-important-keys") {
+			disableImportantKeys = false;
+		}
 		else if(arg == "-h" || arg == "--help") {
-			cout << "Commands:\n\n\t-t or --truncate-tables\n\t\tEmpties all the tables to allow clean import.\n\n\t-a or --atco\n\t\tEnables ATCO-CIF import mode\n\n\t-k or --disable-keys\n\t\tDisables the keys on the tables to allow a much faster import. Re-enables and re-calculates keys after program runs." << endl;
+			cout << "Commands:\n\n\t-t or --truncate-tables\n\t\tEmpties all the tables to allow clean import.\n\n\t-a or --atco\n\t\tEnables ATCO-CIF import mode\n\n\t-k or --disable-keys\n\t\tDisables ALL the keys on the tables to allow a much faster import. Re-enables and re-calculates keys after program runs.\n\n\t-d or --do-not-disable-important-keys\n\t\tRequires -k, except does not disable keys on schedules (best used if on overlay)" << endl;
 			return 0;
 		}
 		else {
@@ -156,11 +160,21 @@ int main(int argc, char *argv[]) {
 	cout << "INFO: Temporary tables created..." << endl;
 	
 	if(disableKeys) {
-		query.exec("ALTER TABLE associations_t DISABLE KEYS;");
+		if(disableImportantKeys) {
+			query.exec("ALTER TABLE associations_t DISABLE KEYS;");
+		}
+		
 		query.exec("ALTER TABLE associations_stpcancel_t DISABLE KEYS;");
 		// locations won't have its keys disabled here as there won't be any!
 		query.exec("ALTER TABLE locations_change_t DISABLE KEYS;");
-		query.exec("ALTER TABLE schedules_t DISABLE KEYS;");
+		
+		if(disableImportantKeys) {
+			query.exec("ALTER TABLE schedules_t DISABLE KEYS;");
+		}
+		else {
+			query.exec("ALTER TABLE schedules_t DROP INDEX `train_identity`, DROP INDEX `bank_hol`, DROP INDEX `status`, DROP INDEX `atoc_code`"); 
+		}
+		
 		query.exec("ALTER TABLE schedules_stpcancel_t DISABLE KEYS;");
 		query.exec("ALTER TABLE tiplocs_t DISABLE KEYS;");
 		
@@ -171,7 +185,7 @@ int main(int argc, char *argv[]) {
 	//   if disableKeys = TRUE, then has no keys
 	//   else                   has a uuid key
 	
-	boolean operationFailed = false;
+	bool operationFailed = false;
 	
 	for(vector<string>::iterator fit = files.begin(); fit < files.end(); ++fit) {
 		/* hack to get around weird seg fault */
@@ -248,8 +262,10 @@ int main(int argc, char *argv[]) {
 	
 	if(disableKeys) {
 		cout << "INFO: Now re-enabling keys, this may take up to around 5 minutes..." << endl;
-		cout << "INFO: Enabling keys on associations..." << endl;
-		query.exec("ALTER TABLE associations_t ENABLE KEYS;");
+		if(disableImportantKeys) {
+			cout << "INFO: Enabling keys on associations..." << endl;
+			query.exec("ALTER TABLE associations_t ENABLE KEYS;");
+		}
 		
 		cout << "INFO: Enabling keys on associations_stpcancel..." << endl;
 		query.exec("ALTER TABLE associations_stpcancel_t ENABLE KEYS;");
@@ -257,8 +273,14 @@ int main(int argc, char *argv[]) {
 		cout << "INFO: Enabling keys on locations_change..." << endl;
 		query.exec("ALTER TABLE locations_change_t ENABLE KEYS;");
 		
-		cout << "INFO: Enabling keys on schedules..." << endl;
-		query.exec("ALTER TABLE schedules_t ENABLE KEYS;");
+		if(disableImportantKeys) {
+			cout << "INFO: Enabling keys on schedules..." << endl;
+			query.exec("ALTER TABLE schedules_t ENABLE KEYS;");
+		}
+		else {
+			cout << "INFO: Adding keys on schedules..." << endl;
+			query.exec("ALTER TABLE schedules_t ADD INDEX (`train_identity`), ADD INDEX (`bank_hol`), ADD INDEX (`status`), ADD INDEX (`atoc_code`)"); 
+		}
 		
 		cout << "INFO: Enabling keys on schedules_stpcancel..." << endl;
 		query.exec("ALTER TABLE schedules_stpcancel_t ENABLE KEYS;");

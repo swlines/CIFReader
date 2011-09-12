@@ -154,6 +154,12 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 				// process it...
 				CIFRecordNRAA *associationDetail = (CIFRecordNRAA *)record;
 				
+				// stp indicator is C, therefore it will want to do a search, so vent all the current
+				// stuff to update in...
+				if(associationDetail->stp_indicator == "C") {
+					NRCIF::runAssociation(conn, associationInsert, associationDelete);
+				}
+				
 				if(associationDetail->transaction_type == "R" || associationDetail->transaction_type == "D") {
 					if(header->update_type == "F") {
 						cerr << endl << "ERROR: ASSOCIATION REVISE/DELETE record appeared in a full update. Exiting." << endl;
@@ -282,6 +288,13 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 				}
 			
 				CIFRecordNRBS *scheduleDetail = (CIFRecordNRBS *)record;
+				
+				// stp indicator is C, therefore it will want to do a search, so vent all the current
+				// stuff to update in...
+				if(scheduleDetail->stp_indicator == "C") {
+					NRCIF::runSchedules(conn, scheduleInsert, locationInsert, locationsChangeInsert, scheduleDelete);
+					scheduleInsNo = 0;
+				}
 				
 				if(scheduleDetail->transaction_type == "R" || scheduleDetail->transaction_type == "D") {
 					if(header->update_type == "F") {
@@ -639,18 +652,18 @@ string NRCIF::findUUIDForService(mysqlpp::Connection &conn, CIFRecordNRBS *s, bo
 	// find this service
 	if(exact) {
 		if(s->date_to != "" && !noDateTo) {
-			query << "SELECT uuid FROM schedules_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND date_from = " << mysqlpp::quote << s->date_from << " AND date_to = " << mysqlpp::quote << s->date_to << " " << runs_on << " AND stp_indicator = " << mysqlpp:quote <<  s->stp_indicator << " LIMIT 0,1";
+			query << "SELECT uuid FROM schedules_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND date_from = " << mysqlpp::quote << s->date_from << " AND date_to = " << mysqlpp::quote << s->date_to << " " << runs_on << " AND stp_indicator = " << mysqlpp::quote <<  s->stp_indicator << " LIMIT 0,1";
 		}
 		else {
-			query << "SELECT uuid FROM schedules_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND date_from = " << mysqlpp::quote << s->date_from << " " << runs_on << " AND stp_indicator = " << mysqlpp:quote <<  s->stp_indicator << " LIMIT 0,1";
+			query << "SELECT uuid FROM schedules_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND date_from = " << mysqlpp::quote << s->date_from << " " << runs_on << " AND stp_indicator = " << mysqlpp::quote <<  s->stp_indicator << " LIMIT 0,1";
 		}
 	}
 	else {
 		if(s->date_to != "" && !noDateTo) {
-			query << "SELECT uuid FROM schedules_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND (" << mysqlpp::quote << s->date_from << " BETWEEN date_from AND date_to) AND (" << mysqlpp::quote << s->date_to << " BETWEEN date_from AND date_to) " <<  runs_on << " AND stp_indicator = " << mysqlpp:quote <<  s->stp_indicator << "  LIMIT 0,1"; 
+			query << "SELECT uuid FROM schedules_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND (" << mysqlpp::quote << s->date_from << " BETWEEN date_from AND date_to) AND (" << mysqlpp::quote << s->date_to << " BETWEEN date_from AND date_to) " <<  runs_on << " AND stp_indicator = " << mysqlpp::quote <<  s->stp_indicator << "  LIMIT 0,1"; 
 		}
 		else {
-			query << "SELECT uuid FROM schedules_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND (" << mysqlpp::quote << s->date_from << " BETWEEN date_from AND date_to) " << runs_on << " AND stp_indicator = " << mysqlpp:quote <<  s->stp_indicator << " LIMIT 0,1";
+			query << "SELECT uuid FROM schedules_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND (" << mysqlpp::quote << s->date_from << " BETWEEN date_from AND date_to) " << runs_on << " AND stp_indicator = " << mysqlpp::quote <<  s->stp_indicator << " LIMIT 0,1";
 		}
 	}
 	
@@ -732,18 +745,18 @@ string NRCIF::findUUIDForAssociation(mysqlpp::Connection &conn, CIFRecordNRAA *a
 	// find this association
 	if(exact) {
 		if(a->date_to != "" && !noDateTo) {
-			query << "SELECT uuid FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND date_from = " << mysqlpp::quote << a->date_from << " AND date_to = " << mysqlpp::quote << a->date_to << assoc_on << " AND stp_indicator = " << mysqlpp:quote <<  s->stp_indicator << "  LIMIT 0,1"; 
+			query << "SELECT uuid FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND date_from = " << mysqlpp::quote << a->date_from << " AND date_to = " << mysqlpp::quote << a->date_to << assoc_on << " AND stp_indicator = " << mysqlpp::quote <<  a->stp_indicator << "  LIMIT 0,1"; 
 		}
 		else {
-			query << "SELECT uuid FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND date_from = " << mysqlpp::quote << a->date_from << assoc_on << " AND stp_indicator = " << mysqlpp:quote <<  s->stp_indicator << " LIMIT 0,1";
+			query << "SELECT uuid FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND date_from = " << mysqlpp::quote << a->date_from << assoc_on << " AND stp_indicator = " << mysqlpp::quote <<  a->stp_indicator << " LIMIT 0,1";
 		}
 	}
 	else{
 		if(a->date_to != "" && !noDateTo) {
-			query << "SELECT uuid FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND (" << mysqlpp::quote << a->date_from << " BETWEEN date_from AND date_to) AND (" << mysqlpp::quote << a->date_to << " BETWEEN date_from AND date_to) " << assoc_on << " AND stp_indicator = " << mysqlpp:quote <<  s->stp_indicator << "  LIMIT 0,1"; 
+			query << "SELECT uuid FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND (" << mysqlpp::quote << a->date_from << " BETWEEN date_from AND date_to) AND (" << mysqlpp::quote << a->date_to << " BETWEEN date_from AND date_to) " << assoc_on << " AND stp_indicator = " << mysqlpp::quote <<  a->stp_indicator << "  LIMIT 0,1"; 
 		}
 		else {
-			query << "SELECT uuid FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND (" << mysqlpp::quote << a->date_from << " BETWEEN date_from AND date_to) " << assoc_on << " AND stp_indicator = " << mysqlpp:quote <<  s->stp_indicator << " LIMIT 0,1";
+			query << "SELECT uuid FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND (" << mysqlpp::quote << a->date_from << " BETWEEN date_from AND date_to) " << assoc_on << " AND stp_indicator = " << mysqlpp::quote <<  a->stp_indicator << " LIMIT 0,1";
 		}
 	}
 	
