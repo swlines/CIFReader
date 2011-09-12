@@ -233,7 +233,10 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 						// get uuid of service being STP cancelled
 						string uuid;
 						try {
+							// temporarily update the association detail to find the right service
+							associationDetail->stp_indicator = "P";
 							uuid = NRCIF::findUUIDForAssociation(conn, associationDetail, false, true, false);
+							associationDetail->stp_indicator = "C";
 						}
 						catch(int e) {
 							cerr << "ERROR: Unable to locate association to STP cancel" << endl;
@@ -437,7 +440,10 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 						// get uuid of service being STP cancelled
 						string uuid;
 						try {
+							// temporarily update service to find the schedule to cancel
+							scheduleDetail->stp_indicator = "P";
 							uuid = NRCIF::findUUIDForService(conn, scheduleDetail, false, true, false);
+							scheduleDetail->stp_indicator = "C";
 						}
 						catch(int e) {
 							cerr << "ERROR: Unable to locate service to STP cancel" << endl;
@@ -641,10 +647,10 @@ string NRCIF::findUUIDForService(mysqlpp::Connection &conn, CIFRecordNRBS *s, bo
 	}
 	else {
 		if(s->date_to != "" && !noDateTo) {
-			query << "SELECT uuid FROM schedules_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND (" << mysqlpp::quote << s->date_from << " BETWEEN date_from AND date_to) AND (" << mysqlpp::quote << s->date_to << " BETWEEN date_from AND date_to) " <<  runs_on << " LIMIT 0,1"; 
+			query << "SELECT uuid FROM schedules_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND (" << mysqlpp::quote << s->date_from << " BETWEEN date_from AND date_to) AND (" << mysqlpp::quote << s->date_to << " BETWEEN date_from AND date_to) " <<  runs_on << " AND stp_indicator = " << mysqlpp:quote <<  s->stp_indicator << "  LIMIT 0,1"; 
 		}
 		else {
-			query << "SELECT uuid FROM schedules_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND (" << mysqlpp::quote << s->date_from << " BETWEEN date_from AND date_to) " << runs_on << " LIMIT 0,1";
+			query << "SELECT uuid FROM schedules_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND (" << mysqlpp::quote << s->date_from << " BETWEEN date_from AND date_to) " << runs_on << " AND stp_indicator = " << mysqlpp:quote <<  s->stp_indicator << " LIMIT 0,1";
 		}
 	}
 	
@@ -734,10 +740,10 @@ string NRCIF::findUUIDForAssociation(mysqlpp::Connection &conn, CIFRecordNRAA *a
 	}
 	else{
 		if(a->date_to != "" && !noDateTo) {
-			query << "SELECT uuid FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND (" << mysqlpp::quote << a->date_from << " BETWEEN date_from AND date_to) AND (" << mysqlpp::quote << a->date_to << " BETWEEN date_from AND date_to) " << assoc_on << " LIMIT 0,1"; 
+			query << "SELECT uuid FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND (" << mysqlpp::quote << a->date_from << " BETWEEN date_from AND date_to) AND (" << mysqlpp::quote << a->date_to << " BETWEEN date_from AND date_to) " << assoc_on << " AND stp_indicator = " << mysqlpp:quote <<  s->stp_indicator << "  LIMIT 0,1"; 
 		}
 		else {
-			query << "SELECT uuid FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND (" << mysqlpp::quote << a->date_from << " BETWEEN date_from AND date_to) " << assoc_on << " LIMIT 0,1";
+			query << "SELECT uuid FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND (" << mysqlpp::quote << a->date_from << " BETWEEN date_from AND date_to) " << assoc_on << " AND stp_indicator = " << mysqlpp:quote <<  s->stp_indicator << " LIMIT 0,1";
 		}
 	}
 	
