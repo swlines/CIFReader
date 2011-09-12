@@ -109,6 +109,7 @@ CIFRecordNRBS::CIFRecordNRBS(string rec) {
 	trim(reservations);
 	trim(catering_code);
 	trim(service_branding);
+	trim(stp_indicator);
 }
 
 void CIFRecordNRBS::mergeWithBX(string rec) {
