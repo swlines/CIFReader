@@ -683,10 +683,10 @@ string NRCIF::findUUIDForService(mysqlpp::Connection &conn, CIFRecordNRBS *s, bo
 	// find this service
 	if(exact) {
 		if(s->date_to != "" && !noDateTo) {
-			query << "SELECT uuid FROM schedules_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND date_from = " << mysqlpp::quote << s->date_from << " AND date_to = " << mysqlpp::quote << s->date_to << " " << runs_on << " AND stp_indicator = " << mysqlpp::quote <<  s->stp_indicator << " LIMIT 0,1";
+			query << "SELECT uuid FROM schedules_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND date_from = " << mysqlpp::quote << s->date_from << " AND date_to = " << mysqlpp::quote << s->date_to << " AND stp_indicator = " << mysqlpp::quote <<  s->stp_indicator << " LIMIT 0,1";
 		}
 		else {
-			query << "SELECT uuid FROM schedules_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND date_from = " << mysqlpp::quote << s->date_from << " " << runs_on << " AND stp_indicator = " << mysqlpp::quote <<  s->stp_indicator << " LIMIT 0,1";
+			query << "SELECT uuid FROM schedules_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND date_from = " << mysqlpp::quote << s->date_from << " AND stp_indicator = " << mysqlpp::quote <<  s->stp_indicator << " LIMIT 0,1";
 		}
 	}
 	else {
