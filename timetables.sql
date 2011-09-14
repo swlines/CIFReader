@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS `locations` (
-  `uuid` varchar(50) NOT NULL,
+  `uuid` char(36) NOT NULL,
   `location_order` int(11) NOT NULL,
-  `location_type` char(2) NOT NULL,
+  `location_type` enum('LO','LI','LT') NOT NULL,
   `tiploc_code` varchar(7) NOT NULL,
   `tiploc_instance` varchar(1) NOT NULL,
   `arrival` varchar(5) NOT NULL,
@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS `locations` (
   `created_at` datetime NOT NULL,
   `updated_at` datetime NOT NULL,
   KEY `uuid` (`uuid`),
+  KEY `location_type` (`location_type`),
   KEY `tiploc_code` (`tiploc_code`),
   KEY `arrival` (`arrival`),
   KEY `public_arrival` (`public_arrival`),
@@ -28,7 +29,7 @@ CREATE TABLE IF NOT EXISTS `locations` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `locations_change` (
-  `uuid` varchar(50) NOT NULL,
+  `uuid` char(36) NOT NULL,
   `tiploc` varchar(7) NOT NULL,
   `tiploc_instance` varchar(1) NOT NULL,
   `category` varchar(2) NOT NULL,
@@ -53,7 +54,7 @@ CREATE TABLE IF NOT EXISTS `locations_change` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `schedules` (
-  `uuid` varchar(50) NOT NULL,
+  `uuid` char(36) NOT NULL,
   `train_uid` varchar(6) NOT NULL,
   `date_from` date NOT NULL,
   `date_to` date NOT NULL,
@@ -88,8 +89,7 @@ CREATE TABLE IF NOT EXISTS `schedules` (
   `data_source` varchar(1) NOT NULL,
   `created_at` datetime NOT NULL,
   `updated_at` datetime NOT NULL,
-  KEY `uuid` (`uuid`),
-  KEY `identity` (`train_identity`),
+  PRIMARY KEY (`uuid`),
   KEY `train_uid` (`train_uid`),
   KEY `date_from` (`date_from`),
   KEY `date_to` (`date_to`),
@@ -100,13 +100,25 @@ CREATE TABLE IF NOT EXISTS `schedules` (
   KEY `runs_fr` (`runs_fr`),
   KEY `runs_sa` (`runs_sa`),
   KEY `runs_su` (`runs_su`),
-  KEY `atoc_code` (`atoc_code`),
+  KEY `stp_indicator` (`stp_indicator`),
+  KEY `train_identity` (`train_identity`),
+  KEY `bank_hol` (`bank_hol`),
   KEY `status` (`status`),
-  KEY `bank_hol` (`bank_hol`)
+  KEY `atoc_code` (`atoc_code`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+CREATE TABLE IF NOT EXISTS `schedules_cache` (
+  `uuid` char(36) NOT NULL,
+  `origin` varchar(7) NOT NULL,
+  `origin_time` varchar(5) NOT NULL,
+  `destination` varchar(7) NOT NULL,
+  `destination_time` varchar(5) NOT NULL,
+  PRIMARY KEY (`uuid`),
+  KEY `origin` (`origin`,`destination`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `schedules_stpcancel` (
-  `uuid` varchar(50) NOT NULL,
+  `uuid` char(36) NOT NULL,
   `cancel_from` date NOT NULL,
   `cancel_to` date NOT NULL,
   `cancel_mo` tinyint(1) NOT NULL,
@@ -141,7 +153,7 @@ CREATE TABLE IF NOT EXISTS `tiplocs` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `associations` (
-  `uuid` varchar(50) NOT NULL,
+  `uuid` char(36) NOT NULL,
   `main_train_uid` varchar(6) NOT NULL,
   `assoc_train_uid` varchar(6) NOT NULL,
   `date_from` date NOT NULL,
@@ -161,10 +173,8 @@ CREATE TABLE IF NOT EXISTS `associations` (
   `assoc_type` varchar(1) NOT NULL,
   `stp_indicator` varchar(1) NOT NULL,
   UNIQUE KEY `uuid` (`uuid`),
-  KEY `main_train_uid` (`main_train_uid`),
   KEY `date_from` (`date_from`),
   KEY `date_to` (`date_to`),
-  KEY `assoc_train_uid` (`assoc_train_uid`),
   KEY `assoc_mo` (`assoc_mo`),
   KEY `assoc_tu` (`assoc_tu`),
   KEY `assoc_we` (`assoc_we`),
@@ -172,11 +182,12 @@ CREATE TABLE IF NOT EXISTS `associations` (
   KEY `assoc_fr` (`assoc_fr`),
   KEY `assoc_sa` (`assoc_sa`),
   KEY `assoc_su` (`assoc_su`),
-  KEY `location` (`location`)
+  KEY `location` (`location`),
+  KEY `main_train_uid` (`main_train_uid`,`assoc_train_uid`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `associations_stpcancel` (
-  `uuid` varchar(50) NOT NULL,
+  `uuid` char(36) NOT NULL,
   `cancel_from` date NOT NULL,
   `cancel_to` date NOT NULL,
   `cancel_mo` tinyint(1) NOT NULL,
@@ -197,4 +208,3 @@ CREATE TABLE IF NOT EXISTS `associations_stpcancel` (
   KEY `cancel_from` (`cancel_from`),
   KEY `cancel_to` (`cancel_to`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='Contains LTP services with an STP cancel (C on CIF)';
-
