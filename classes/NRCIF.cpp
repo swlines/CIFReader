@@ -188,23 +188,23 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 						associationDelete.push_back(uuid);
 						uuid.clear();
 					}
-					else if(associationDetail->stp_indicator == "C" && associationDetail->transaction_type == "D") {
+					else if(associationDetail->stp_indicator == "C") {
 						// cancelling the cancellation of an LTP service... (i wish i could fit more cancels in here :))
 						
 						string uuid;
 						
 						// find the permament service relating to these dates
 						try {
+							associationDetail->stp_indicator = "P";
 							uuid = NRCIF::findUUIDForAssociation(conn, associationDetail, false, true, false);
+							associationDetail->stp_indicator = "C";
+							NRCIF::deleteSTPAssociationCancellation(conn, uuid, associationDetail->date_from);
 						}
 						catch(int e) {
-							cerr << "ERROR: Unable to locate association to remove STP cancel" << endl;
-							delete record;
-							conn.disconnect();
-							return false;
+							// we can assume this occurs when the service has already been deleted.
+							// as CIF has no particular order, so move on...
 						}
 						
-						NRCIF::deleteSTPAssociationCancellation(conn, uuid, associationDetail->date_from, associationDetail->date_to);
 						uuid.clear();
 					}
 				}
@@ -318,7 +318,7 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 						uuid.clear();
 						scheduleInsNo++;
 					}
-					else if(scheduleDetail->stp_indicator == "C" && scheduleDetail->transaction_type == "D") {
+					else if(scheduleDetail->stp_indicator == "C") {
 						// deletion of an STP cancel...
 						// push back into vector
 						scheduleSTPCancelDelete.push_back(scheduleDetail);
@@ -528,7 +528,7 @@ void NRCIF::runTiploc(mysqlpp::Connection &conn, vector<tiplocs_t> &tiplocInsert
 	// delete the old tiplocs
 	vector<string>::iterator dit;
 	for(dit = tiplocDelete.begin(); dit < tiplocDelete.end(); dit++) {
-		query << "DELETE FROM tiplocs WHERE tiploc = " << mysqlpp::quote << *dit;
+		query << "DELETE FROM tiplocs_t WHERE tiploc = " << mysqlpp::quote << *dit;
 		query.execute();
 	}
 	tiplocDelete.clear();
@@ -551,7 +551,7 @@ void NRCIF::runAssociation(mysqlpp::Connection &conn, vector<associations_t> &as
 	// delete the old associations
 	vector<string>::iterator dit;
 	for(dit = associationDelete.begin(); dit < associationDelete.end(); dit++) {
-		query << "DELETE FROM associations WHERE uuid = " << mysqlpp::quote << *dit;
+		query << "DELETE FROM associations_t WHERE uuid = " << mysqlpp::quote << *dit;
 		query.execute();
 	}
 	associationDelete.clear();
@@ -602,16 +602,16 @@ void NRCIF::runSchedulesStpCancel(mysqlpp::Connection &conn, vector<CIFRecordNRB
 		
 		// find the permament service relating to these dates
 		try {
+			scheduleDetail->stp_indicator = "P"; 
 			uuid = NRCIF::findUUIDForService(conn, scheduleDetail, false, true, false);
+			scheduleDetail->stp_indicator = "C";
+			NRCIF::deleteSTPServiceCancellation(conn, uuid, scheduleDetail->date_from);
 		}
 		catch(int e) {
-			cerr << "ERROR: Unable to locate service to remove STP cancel" << endl;
-			delete scheduleDetail;
-			conn.disconnect();
-			return;
+			// we can assume this occurs when the service has already been deleted.
+			// as CIF has no particular order, so move on...
 		}
 		
-		NRCIF::deleteSTPServiceCancellation(conn, uuid, scheduleDetail->date_from, scheduleDetail->date_to);
 		delete scheduleDetail;
 		uuid.clear();
 	}
@@ -710,7 +710,8 @@ string NRCIF::findUUIDForService(mysqlpp::Connection &conn, CIFRecordNRBS *s, bo
 		else if(noDateTo && !removeDoesntRunOn) 
 			return NRCIF::findUUIDForService(conn, s, exact, true, true);
 		else {
-			cout << endl << "Error query: " << queryString << endl;
+			// uncomment this if you want some verbose output on errors
+			//cout << endl << "Error query: " << queryString << endl;
 			throw 1;
 		}
 	}
@@ -736,16 +737,10 @@ void NRCIF::deleteService(mysqlpp::Connection &conn, string uuid) {
 	query.execute();
 }
 
-void NRCIF::deleteSTPServiceCancellation(mysqlpp::Connection &conn, string uuid, string cancelFrom, string cancelTo) {
+void NRCIF::deleteSTPServiceCancellation(mysqlpp::Connection &conn, string uuid, string cancelFrom) {
 	mysqlpp::Query query = conn.query();
 	
-	if(cancelTo == "") {
-		query << "DELETE FROM schedules_stpcancel_t WHERE uuid = " << mysqlpp::quote << uuid << " AND cancel_from = " << mysqlpp::quote << cancelFrom;
-	}
-	else {
-		query << "DELETE FROM schedules_stpcancel_t WHERE uuid = " << mysqlpp::quote << uuid << " AND cancel_from = " << mysqlpp::quote << cancelFrom << " AND cancel_to = " << mysqlpp::quote << cancelTo;
-	}
-	
+	query << "DELETE FROM schedules_stpcancel_t WHERE uuid = " << mysqlpp::quote << uuid << " AND cancel_from = " << mysqlpp::quote << cancelFrom;
 	query.execute();
 }
 
@@ -803,7 +798,8 @@ string NRCIF::findUUIDForAssociation(mysqlpp::Connection &conn, CIFRecordNRAA *a
 		else if(noDateTo && !removeDoesntRunOn) 
 			return NRCIF::findUUIDForAssociation(conn, a, exact, true, true);
 		else {
-			cout << endl << "Error query: " << queryString << endl;
+			// uncomment this if you want some verbose output on errors
+			//cout << endl << "Error query: " << queryString << endl;
 			throw 1;
 		}
 	}
@@ -822,15 +818,10 @@ void NRCIF::deleteAssociation(mysqlpp::Connection &conn, string uuid) {
 }
 
 
-void NRCIF::deleteSTPAssociationCancellation(mysqlpp::Connection &conn, string uuid, string cancelFrom, string cancelTo) {
+void NRCIF::deleteSTPAssociationCancellation(mysqlpp::Connection &conn, string uuid, string cancelFrom) {
 	mysqlpp::Query query = conn.query();
 	
-	if(cancelTo == "") {
-		query << "DELETE FROM associations_stpcancel_t WHERE uuid = " << mysqlpp::quote << uuid << " AND cancel_from = " << mysqlpp::quote << cancelFrom;
-	}
-	else {
-		query << "DELETE FROM associations_stpcancel_t WHERE uuid = " << mysqlpp::quote << uuid << " AND cancel_from = " << mysqlpp::quote << cancelFrom << " AND cancel_to = " << mysqlpp::quote << cancelTo;
-	}
+	query << "DELETE FROM associations_stpcancel_t WHERE uuid = " << mysqlpp::quote << uuid << " AND cancel_from = " << mysqlpp::quote << cancelFrom;
 	
 	query.execute();
 }
