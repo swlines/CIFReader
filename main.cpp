@@ -112,10 +112,10 @@ int main(int argc, char *argv[]) {
 		query.exec("CREATE TABLE locations_t LIKE locations");
 		
 		if(disableKeys) {
-			query.exec("ALTER TABLE locations_t DROP INDEX `tiploc_code`, DROP INDEX `arrival`,DROP INDEX `public_arrival`,DROP INDEX `pass`, DROP INDEX `departure`,DROP INDEX `public_departure`, DROP INDEX `uuid`");
+			query.exec("ALTER TABLE locations_t DROP INDEX `tiploc_code`, DROP INDEX `arrival`,DROP INDEX `public_arrival`,DROP INDEX `pass`, DROP INDEX `departure`,DROP INDEX `public_departure`, DROP INDEX `location_type`, DROP INDEX `uuid`");
 		}
 		else {
-			query.exec("ALTER TABLE locations_t DROP INDEX `tiploc_code`, DROP INDEX `arrival`, DROP INDEX `public_arrival`, DROP INDEX `pass`, DROP INDEX `departure`, DROP INDEX `public_departure`");
+			query.exec("ALTER TABLE locations_t DROP INDEX `tiploc_code`, DROP INDEX `arrival`, DROP INDEX `public_arrival`, DROP INDEX `pass`, DROP INDEX `departure`, DROP INDEX `public_departure`, DROP INDEX `location_type`");
 		}
 		
 		query.exec("CREATE TABLE locations_change_t LIKE locations_change");
@@ -293,10 +293,10 @@ int main(int argc, char *argv[]) {
 	
 	cout << "INFO: Adding keys on locations (temp table) - may take a while..." << endl;
 	if(disableKeys) {
-		query.exec("ALTER TABLE locations_t ADD INDEX (`uuid`), ADD INDEX (`tiploc_code`), ADD INDEX (`arrival`), ADD INDEX  (`public_arrival`), ADD INDEX (`pass`), ADD INDEX (`departure`), ADD INDEX (`public_departure`)");
+		query.exec("ALTER TABLE locations_t ADD INDEX (`uuid`), ADD INDEX (`location_type`), ADD INDEX (`tiploc_code`), ADD INDEX (`arrival`), ADD INDEX  (`public_arrival`), ADD INDEX (`pass`), ADD INDEX (`departure`), ADD INDEX (`public_departure`)");
 	}
 	else {
-		query.exec("ALTER TABLE locations_t ADD INDEX (`tiploc_code`), ADD INDEX (`arrival`), ADD INDEX (`public_arrival`), ADD INDEX (`pass`), ADD INDEX (`departure`), ADD INDEX (`public_departure`)");
+		query.exec("ALTER TABLE locations_t ADD INDEX (`location_type`), ADD INDEX (`tiploc_code`), ADD INDEX (`arrival`), ADD INDEX (`public_arrival`), ADD INDEX (`pass`), ADD INDEX (`departure`), ADD INDEX (`public_departure`)");
 	}
 	
 	cout << "INFO: Completed adding keys on locations" << endl;
