@@ -305,11 +305,11 @@ int main(int argc, char *argv[]) {
 	
 	cout << "INFO: Completed adding keys on locations" << endl;
 	
-	cout << "INFO: Building schedule cache... (departure locations)";
+	cout << "INFO: Building schedule cache... (departure locations)" << endl;
 	query.exec("INSERT INTO schedules_cache_t (`uuid`, `origin`, `origin_time`) SELECT uuid, tiploc_code as origin, departure as departure FROM locations_t WHERE location_type = 'LO'");
-	cout << "INFO: Building schedule cache... (arrival locations)";
-	query.exec("UPDATE schedules_cache_t, locations_t SET schedules_cache_t.destination = locations_t.tiploc_code, schedules_cache_t.arrival = locations_t.arrival WHERE locations_t.uuid = schedules_cache_t.uuid AND locations_t.location_type = 'LT'");
-	cout << "INFO: Cache building completed...");
+	cout << "INFO: Building schedule cache... (arrival locations)" << endl;
+	query.exec("UPDATE schedules_cache_t, locations_t SET schedules_cache_t.destination = locations_t.tiploc_code, schedules_cache_t.destination_time = locations_t.arrival WHERE locations_t.uuid = schedules_cache_t.uuid AND locations_t.location_type = 'LT'");
+	cout << "INFO: Cache building completed..." << endl;
 	
 	cout << "INFO: Now moving current tables out of the way..." << endl;
 	query.exec("RENAME TABLE associations TO associations_old, associations_t TO associations, associations_stpcancel TO associations_stpcancel_old, associations_stpcancel_t TO associations_stpcancel, locations_change TO locations_change_old, locations_change_t TO locations_change, schedules TO schedules_old, schedules_t TO schedules, schedules_stpcancel TO schedules_stpcancel_old, schedules_stpcancel_t TO schedules_stpcancel, tiplocs TO tiplocs_old, tiplocs_t TO tiplocs, locations TO locations_old, locations_t TO locations, schedules_cache TO schedules_cache_old, schedules_cache_t TO schedules_cache");
