@@ -112,7 +112,7 @@ int main(int argc, char *argv[]) {
 		query.exec("CREATE TABLE locations_t LIKE locations");
 		
 		if(disableKeys) {
-			query.exec("ALTER TABLE locations_t DROP INDEX `tiploc_code`, DROP INDEX `arrival`,DROP INDEX `public_arrival`,DROP INDEX `pass`, DROP INDEX `departure`,DROP INDEX `public_departure`, DROP INDEX `location_type`, DROP INDEX `uuid`");
+			query.exec("ALTER TABLE locations_t DROP INDEX `tiploc_code`, DROP INDEX `arrival`,DROP INDEX `public_arrival`,DROP INDEX `pass`, DROP INDEX `departure`,DROP INDEX `public_departure`, DROP INDEX `location_type`, DROP INDEX `id`");
 		}
 		else {
 			query.exec("ALTER TABLE locations_t DROP INDEX `tiploc_code`, DROP INDEX `arrival`, DROP INDEX `public_arrival`, DROP INDEX `pass`, DROP INDEX `departure`, DROP INDEX `public_departure`, DROP INDEX `location_type`");
@@ -137,8 +137,8 @@ int main(int argc, char *argv[]) {
 		query.exec("CREATE TABLE locations_t SELECT * FROM locations"); // temp locations
 		
 		if(!disableKeys) {
-			cout << "INFO: Generating UUID key on locations_t" << endl;
-			query.exec("ALTER TABLE locations_t ADD INDEX (`uuid`)");
+			cout << "INFO: Generating ID key on locations_t" << endl;
+			query.exec("ALTER TABLE locations_t ADD INDEX (`id`)");
 		}
 		
 		cout << "INFO: Inserting locations_change into temporary table..." << endl;
@@ -187,7 +187,7 @@ int main(int argc, char *argv[]) {
 	
 	// at this point, all tables have their keys as per normal EXCEPT locations which 
 	//   if disableKeys = TRUE, then has no keys
-	//   else                   has a uuid key
+	//   else                   has a id key
 	
 	bool operationFailed = false;
 	
@@ -297,7 +297,7 @@ int main(int argc, char *argv[]) {
 	
 	cout << "INFO: Adding keys on locations (temp table) - may take a while..." << endl;
 	if(disableKeys) {
-		query.exec("ALTER TABLE locations_t ADD INDEX (`uuid`), ADD INDEX (`location_type`), ADD INDEX (`tiploc_code`), ADD INDEX (`arrival`), ADD INDEX  (`public_arrival`), ADD INDEX (`pass`), ADD INDEX (`departure`), ADD INDEX (`public_departure`)");
+		query.exec("ALTER TABLE locations_t ADD INDEX (`id`), ADD INDEX (`location_type`), ADD INDEX (`tiploc_code`), ADD INDEX (`arrival`), ADD INDEX  (`public_arrival`), ADD INDEX (`pass`), ADD INDEX (`departure`), ADD INDEX (`public_departure`)");
 	}
 	else {
 		query.exec("ALTER TABLE locations_t ADD INDEX (`location_type`), ADD INDEX (`tiploc_code`), ADD INDEX (`arrival`), ADD INDEX (`public_arrival`), ADD INDEX (`pass`), ADD INDEX (`departure`), ADD INDEX (`public_departure`)");
@@ -306,9 +306,9 @@ int main(int argc, char *argv[]) {
 	cout << "INFO: Completed adding keys on locations" << endl;
 	
 	cout << "INFO: Building schedule cache... (departure locations)" << endl;
-	query.exec("INSERT INTO schedules_cache_t (`uuid`, `origin`, `origin_time`) SELECT uuid, tiploc_code as origin, departure as departure FROM locations_t WHERE location_type = 'LO'");
+	query.exec("INSERT INTO schedules_cache_t (`id`, `origin`, `origin_time`) SELECT id, tiploc_code as origin, departure as departure FROM locations_t WHERE location_type = 'LO'");
 	cout << "INFO: Building schedule cache... (arrival locations)" << endl;
-	query.exec("UPDATE schedules_cache_t, locations_t SET schedules_cache_t.destination = locations_t.tiploc_code, schedules_cache_t.destination_time = locations_t.arrival WHERE locations_t.uuid = schedules_cache_t.uuid AND locations_t.location_type = 'LT'");
+	query.exec("UPDATE schedules_cache_t, locations_t SET schedules_cache_t.destination = locations_t.tiploc_code, schedules_cache_t.destination_time = locations_t.arrival WHERE locations_t.id = schedules_cache_t.id AND locations_t.location_type = 'LT'");
 	cout << "INFO: Cache building completed..." << endl;
 	
 	cout << "INFO: Now moving current tables out of the way..." << endl;

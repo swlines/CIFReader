@@ -1,6 +1,64 @@
+CREATE TABLE IF NOT EXISTS `associations` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `main_train_uid` char(6) NOT NULL,
+  `assoc_train_uid` char(6) NOT NULL,
+  `date_from` date NOT NULL,
+  `date_to` date NOT NULL,
+  `assoc_mo` tinyint(1) NOT NULL,
+  `assoc_tu` tinyint(1) NOT NULL,
+  `assoc_we` tinyint(1) NOT NULL,
+  `assoc_th` tinyint(1) NOT NULL,
+  `assoc_fr` tinyint(1) NOT NULL,
+  `assoc_sa` tinyint(1) NOT NULL,
+  `assoc_su` tinyint(1) NOT NULL,
+  `category` varchar(2) NOT NULL,
+  `date_indicator` varchar(1) NOT NULL,
+  `location` varchar(7) NOT NULL,
+  `base_location_suffix` varchar(1) NOT NULL,
+  `assoc_location_suffix` varchar(1) NOT NULL,
+  `assoc_type` varchar(1) NOT NULL,
+  `stp_indicator` varchar(1) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `date_from` (`date_from`),
+  KEY `date_to` (`date_to`),
+  KEY `assoc_mo` (`assoc_mo`),
+  KEY `assoc_tu` (`assoc_tu`),
+  KEY `assoc_we` (`assoc_we`),
+  KEY `assoc_th` (`assoc_th`),
+  KEY `assoc_fr` (`assoc_fr`),
+  KEY `assoc_sa` (`assoc_sa`),
+  KEY `assoc_su` (`assoc_su`),
+  KEY `location` (`location`),
+  KEY `main_train_uid` (`main_train_uid`),
+  KEY `assoc_train_uid` (`assoc_train_uid`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 AUTO_INCREMENT=1 ;
+
+CREATE TABLE IF NOT EXISTS `associations_stpcancel` (
+  `id` int(11) NOT NULL,
+  `cancel_from` date NOT NULL,
+  `cancel_to` date NOT NULL,
+  `cancel_mo` tinyint(1) NOT NULL,
+  `cancel_tu` tinyint(1) NOT NULL,
+  `cancel_we` tinyint(1) NOT NULL,
+  `cancel_th` tinyint(1) NOT NULL,
+  `cancel_fr` tinyint(1) NOT NULL,
+  `cancel_sa` tinyint(1) NOT NULL,
+  `cancel_su` tinyint(1) NOT NULL,
+  KEY `id` (`id`),
+  KEY `cancel_mo` (`cancel_mo`),
+  KEY `cancel_tu` (`cancel_tu`),
+  KEY `cancel_we` (`cancel_we`),
+  KEY `cancel_th` (`cancel_th`),
+  KEY `cancel_fr` (`cancel_fr`),
+  KEY `cancel_sa` (`cancel_sa`),
+  KEY `cancel_su` (`cancel_su`),
+  KEY `cancel_from` (`cancel_from`),
+  KEY `cancel_to` (`cancel_to`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='Contains LTP services with an STP cancel (C on CIF)';
+
 CREATE TABLE IF NOT EXISTS `locations` (
-  `uuid` char(36) NOT NULL,
-  `location_order` int(11) NOT NULL,
+  `id` int(11) NOT NULL,
+  `location_order` smallint(6) NOT NULL,
   `location_type` enum('LO','LI','LT') NOT NULL,
   `tiploc_code` varchar(7) NOT NULL,
   `tiploc_instance` varchar(1) NOT NULL,
@@ -18,7 +76,7 @@ CREATE TABLE IF NOT EXISTS `locations` (
   `activity` varchar(12) NOT NULL,
   `created_at` datetime NOT NULL,
   `updated_at` datetime NOT NULL,
-  KEY `uuid` (`uuid`),
+  KEY `id` (`id`),
   KEY `location_type` (`location_type`),
   KEY `tiploc_code` (`tiploc_code`),
   KEY `arrival` (`arrival`),
@@ -29,7 +87,7 @@ CREATE TABLE IF NOT EXISTS `locations` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `locations_change` (
-  `uuid` char(36) NOT NULL,
+  `id` int(11) NOT NULL,
   `tiploc` varchar(7) NOT NULL,
   `tiploc_instance` varchar(1) NOT NULL,
   `category` varchar(2) NOT NULL,
@@ -48,14 +106,15 @@ CREATE TABLE IF NOT EXISTS `locations_change` (
   `service_branding` varchar(4) NOT NULL,
   `uic_code` varchar(5) NOT NULL,
   `rsid` varchar(8) NOT NULL,
-  KEY `uuid` (`uuid`),
+  KEY `id` (`id`),
   KEY `identity` (`train_identity`),
   KEY `tiploc` (`tiploc`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `schedules` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
   `uuid` char(36) NOT NULL,
-  `train_uid` varchar(6) NOT NULL,
+  `train_uid` char(6) NOT NULL,
   `date_from` date NOT NULL,
   `date_to` date NOT NULL,
   `runs_mo` tinyint(1) NOT NULL,
@@ -87,9 +146,8 @@ CREATE TABLE IF NOT EXISTS `schedules` (
   `ats_code` varchar(1) NOT NULL,
   `rsid` varchar(8) NOT NULL,
   `data_source` varchar(1) NOT NULL,
-  `created_at` datetime NOT NULL,
-  `updated_at` datetime NOT NULL,
-  PRIMARY KEY (`uuid`),
+  PRIMARY KEY (`id`),
+  KEY `uuid` (`uuid`),
   KEY `train_uid` (`train_uid`),
   KEY `date_from` (`date_from`),
   KEY `date_to` (`date_to`),
@@ -105,20 +163,20 @@ CREATE TABLE IF NOT EXISTS `schedules` (
   KEY `bank_hol` (`bank_hol`),
   KEY `status` (`status`),
   KEY `atoc_code` (`atoc_code`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 AUTO_INCREMENT=1 ;
 
 CREATE TABLE IF NOT EXISTS `schedules_cache` (
-  `uuid` char(36) NOT NULL,
+  `id` int(11) NOT NULL,
   `origin` varchar(7) NOT NULL,
   `origin_time` varchar(5) NOT NULL,
   `destination` varchar(7) NOT NULL,
   `destination_time` varchar(5) NOT NULL,
-  PRIMARY KEY (`uuid`),
+  PRIMARY KEY (`id`),
   KEY `origin` (`origin`,`destination`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `schedules_stpcancel` (
-  `uuid` char(36) NOT NULL,
+  `id` int(11) NOT NULL,
   `cancel_from` date NOT NULL,
   `cancel_to` date NOT NULL,
   `cancel_mo` tinyint(1) NOT NULL,
@@ -128,7 +186,7 @@ CREATE TABLE IF NOT EXISTS `schedules_stpcancel` (
   `cancel_fr` tinyint(1) NOT NULL,
   `cancel_sa` tinyint(1) NOT NULL,
   `cancel_su` tinyint(1) NOT NULL,
-  KEY `uuid` (`uuid`),
+  KEY `id` (`id`),
   KEY `cancel_from` (`cancel_from`),
   KEY `cancel_to` (`cancel_to`),
   KEY `cancel_mo` (`cancel_mo`),
@@ -151,60 +209,3 @@ CREATE TABLE IF NOT EXISTS `tiplocs` (
   KEY `crs_code` (`crs`),
   KEY `stanox` (`stanox`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
-
-CREATE TABLE IF NOT EXISTS `associations` (
-  `uuid` char(36) NOT NULL,
-  `main_train_uid` varchar(6) NOT NULL,
-  `assoc_train_uid` varchar(6) NOT NULL,
-  `date_from` date NOT NULL,
-  `date_to` date NOT NULL,
-  `assoc_mo` tinyint(1) NOT NULL,
-  `assoc_tu` tinyint(1) NOT NULL,
-  `assoc_we` tinyint(1) NOT NULL,
-  `assoc_th` tinyint(1) NOT NULL,
-  `assoc_fr` tinyint(1) NOT NULL,
-  `assoc_sa` tinyint(1) NOT NULL,
-  `assoc_su` tinyint(1) NOT NULL,
-  `category` varchar(2) NOT NULL,
-  `date_indicator` varchar(1) NOT NULL,
-  `location` varchar(7) NOT NULL,
-  `base_location_suffix` varchar(1) NOT NULL,
-  `assoc_location_suffix` varchar(1) NOT NULL,
-  `assoc_type` varchar(1) NOT NULL,
-  `stp_indicator` varchar(1) NOT NULL,
-  UNIQUE KEY `uuid` (`uuid`),
-  KEY `date_from` (`date_from`),
-  KEY `date_to` (`date_to`),
-  KEY `assoc_mo` (`assoc_mo`),
-  KEY `assoc_tu` (`assoc_tu`),
-  KEY `assoc_we` (`assoc_we`),
-  KEY `assoc_th` (`assoc_th`),
-  KEY `assoc_fr` (`assoc_fr`),
-  KEY `assoc_sa` (`assoc_sa`),
-  KEY `assoc_su` (`assoc_su`),
-  KEY `location` (`location`),
-  KEY `main_train_uid` (`main_train_uid`,`assoc_train_uid`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
-
-CREATE TABLE IF NOT EXISTS `associations_stpcancel` (
-  `uuid` char(36) NOT NULL,
-  `cancel_from` date NOT NULL,
-  `cancel_to` date NOT NULL,
-  `cancel_mo` tinyint(1) NOT NULL,
-  `cancel_tu` tinyint(1) NOT NULL,
-  `cancel_we` tinyint(1) NOT NULL,
-  `cancel_th` tinyint(1) NOT NULL,
-  `cancel_fr` tinyint(1) NOT NULL,
-  `cancel_sa` tinyint(1) NOT NULL,
-  `cancel_su` tinyint(1) NOT NULL,
-  KEY `uuid` (`uuid`),
-  KEY `cancel_mo` (`cancel_mo`),
-  KEY `cancel_tu` (`cancel_tu`),
-  KEY `cancel_we` (`cancel_we`),
-  KEY `cancel_th` (`cancel_th`),
-  KEY `cancel_fr` (`cancel_fr`),
-  KEY `cancel_sa` (`cancel_sa`),
-  KEY `cancel_su` (`cancel_su`),
-  KEY `cancel_from` (`cancel_from`),
-  KEY `cancel_to` (`cancel_to`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='Contains LTP services with an STP cancel (C on CIF)';

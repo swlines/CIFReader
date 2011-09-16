@@ -20,7 +20,6 @@
 
 #include <string>
 #include <boost/algorithm/string.hpp>
-#include <uuid/uuid.h>
 
 #ifndef _CIF_RECORD_INC
 #define _CIF_RECORD_INC
@@ -35,7 +34,7 @@ class CIFRecordNRAA : public CIFRecord {
 		unsigned getRecordType();
 		CIFRecordNRAA(string rec);
 		~CIFRecordNRAA();
-		string unique_id, transaction_type, main_train_uid, assoc_train_uid, date_from, date_to, assoc_mo, assoc_tu, assoc_we, assoc_th, assoc_fr, assoc_sa, assoc_su, category, date_indicator, location, base_location_suffix, assoc_location_suffix, assoc_type, stp_indicator;
+		string transaction_type, main_train_uid, assoc_train_uid, date_from, date_to, assoc_mo, assoc_tu, assoc_we, assoc_th, assoc_fr, assoc_sa, assoc_su, category, date_indicator, location, base_location_suffix, assoc_location_suffix, assoc_type, stp_indicator;
 };
 
 unsigned CIFRecordNRAA::getRecordType() { 
@@ -44,18 +43,6 @@ unsigned CIFRecordNRAA::getRecordType() {
 
 CIFRecordNRAA::CIFRecordNRAA(string rec) {
 	transaction_type 	= rec.substr(2,  1);
-	
-	// do not need to generate a uuid if we are deleting an association...
-	if(transaction_type == "N" || transaction_type == "R") {
-		char uuidBuffer[36];
-		uuid_t uuid;
-		uuid_generate(uuid);
-		uuid_unparse(uuid, uuidBuffer);
-	
-		stringstream ss;
-		ss << uuidBuffer;
-		ss >> unique_id;
-	}
 	
 	// catch any out of range errors, meaning record has finished
 	try {
@@ -102,7 +89,6 @@ CIFRecordNRAA::CIFRecordNRAA(string rec) {
 }
 
 CIFRecordNRAA::~CIFRecordNRAA() {
-	unique_id.clear();
 	transaction_type.clear();
 	main_train_uid.clear();
 	assoc_train_uid.clear();

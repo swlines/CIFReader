@@ -40,15 +40,15 @@ class NRCIF {
 	private:
 		static CIFRecord* processLine(string record);
 		static void runTiploc(mysqlpp::Connection &conn, vector<tiplocs_t> &tiplocInsert, vector<string> &tiplocDelete);
-		static void runAssociation(mysqlpp::Connection &conn, vector<associations_t> &associationInsert, vector<string> &associationDelete);
-		static void runSchedules(mysqlpp::Connection &conn, vector<schedules_t> &scheduleInsert, vector<locations_t> &locationInsert, vector<locations_change_t> &locationsChangeInsert, vector<string> &scheduleDelete);
+		static void runAssociation(mysqlpp::Connection &conn, vector<associations_t> &associationInsert, vector<int> &associationDelete);
+		static void runSchedules(mysqlpp::Connection &conn, vector<locations_t> &locationInsert, vector<locations_change_t> &locationsChangeInsert, vector<int> &scheduleDelete);
 		static void runSchedulesStpCancel(mysqlpp::Connection &conn, vector<CIFRecordNRBS *> &scheduleSTPCancelDelete, vector<CIFRecordNRBS *> &scheduleSTPCancelInsert);
 		
-		static string findUUIDForService(mysqlpp::Connection &conn, CIFRecordNRBS *s, bool exact, bool removeDoesntRunOn, bool noDateTo);
-		static void deleteService(mysqlpp::Connection &conn, string uuid);
-		static void deleteSTPServiceCancellation(mysqlpp::Connection &conn, string uuid, string cancelFrom);
+		static int findIDForService(mysqlpp::Connection &conn, CIFRecordNRBS *s, bool exact, bool removeDoesntRunOn, bool noDateTo);
+		static void deleteService(mysqlpp::Connection &conn, int id);
+		static void deleteSTPServiceCancellation(mysqlpp::Connection &conn, int id, string cancelFrom);
 		
-		static string findUUIDForAssociation(mysqlpp::Connection &conn, CIFRecordNRAA *a, bool exact, bool removeDoesntRunOn, bool noDateTo);
-		static void deleteAssociation(mysqlpp::Connection &conn, string uuid);
-		static void deleteSTPAssociationCancellation(mysqlpp::Connection &conn, string uuid, string cancelFrom);
+		static int findIDForAssociation(mysqlpp::Connection &conn, CIFRecordNRAA *a, bool exact, bool removeDoesntRunOn, bool noDateTo);
+		static void deleteAssociation(mysqlpp::Connection &conn, int id);
+		static void deleteSTPAssociationCancellation(mysqlpp::Connection &conn, int id, string cancelFrom);
 };

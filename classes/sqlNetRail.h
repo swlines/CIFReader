@@ -57,7 +57,7 @@ sql_create_33(schedules_t, 1, 33,
 	mysqlpp::sql_varchar, data_source);
 	
 sql_create_10(schedules_stpcancel_t, 1, 10,
-	mysqlpp::sql_varchar, uuid,
+	mysqlpp::sql_int, id,
 	mysqlpp::sql_date, cancel_from,
 	mysqlpp::sql_date, cancel_to,
 	mysqlpp::sql_char, cancel_mo,
@@ -77,7 +77,7 @@ sql_create_6(tiplocs_t, 1, 6,
 	mysqlpp::sql_varchar, description);
 	
 sql_create_17(locations_t, 1, 17,
-	mysqlpp::sql_varchar, uuid,
+	mysqlpp::sql_int, id,
 	mysqlpp::sql_int, location_order,
 	mysqlpp::sql_char, location_type,
 	mysqlpp::sql_varchar, tiploc_code,
@@ -96,7 +96,7 @@ sql_create_17(locations_t, 1, 17,
 	mysqlpp::sql_varchar, activity);
 	
 sql_create_19(locations_change_t, 1, 19,
-	mysqlpp::sql_varchar, uuid,
+	mysqlpp::sql_int, id,
 	mysqlpp::sql_varchar, tiploc,
 	mysqlpp::sql_varchar, tiploc_instance,
 	mysqlpp::sql_varchar, category,
@@ -116,8 +116,7 @@ sql_create_19(locations_change_t, 1, 19,
 	mysqlpp::sql_varchar, uic_code,
 	mysqlpp::sql_varchar, rsid);
 
-sql_create_19(associations_t, 1, 19,
-	mysqlpp::sql_varchar, uuid,
+sql_create_18(associations_t, 1, 18,
 	mysqlpp::sql_varchar, main_train_uid,
 	mysqlpp::sql_varchar, assoc_train_uid,
 	mysqlpp::sql_date, date_from,
@@ -138,7 +137,7 @@ sql_create_19(associations_t, 1, 19,
 	mysqlpp::sql_varchar, stp_indicator);
 
 sql_create_10(associations_stpcancel_t, 1, 10,
-	mysqlpp::sql_varchar, uuid,
+	mysqlpp::sql_int, id,
 	mysqlpp::sql_date, cancel_from,
 	mysqlpp::sql_date, cancel_to,
 	mysqlpp::sql_char, cancel_mo,
