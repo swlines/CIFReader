@@ -763,10 +763,10 @@ int NRCIF::findIDForAssociation(mysqlpp::Connection &conn, CIFRecordNRAA *a, boo
 	// find this association
 	if(exact) {
 		if(a->date_to != "" && !noDateTo) {
-			query << "SELECT id FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND date_from = " << mysqlpp::quote << a->date_from << " AND date_to = " << mysqlpp::quote << a->date_to << assoc_on << " AND stp_indicator = " << mysqlpp::quote <<  a->stp_indicator << "  LIMIT 0,1"; 
+			query << "SELECT id FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND date_from = " << mysqlpp::quote << a->date_from << " AND date_to = " << mysqlpp::quote << a->date_to << " AND stp_indicator = " << mysqlpp::quote <<  a->stp_indicator << "  LIMIT 0,1"; 
 		}
 		else {
-			query << "SELECT id FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND date_from = " << mysqlpp::quote << a->date_from << assoc_on << " AND stp_indicator = " << mysqlpp::quote <<  a->stp_indicator << " LIMIT 0,1";
+			query << "SELECT id FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND date_from = " << mysqlpp::quote << a->date_from << " AND stp_indicator = " << mysqlpp::quote <<  a->stp_indicator << " LIMIT 0,1";
 		}
 	}
 	else{
