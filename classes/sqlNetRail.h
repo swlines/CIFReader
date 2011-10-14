@@ -21,7 +21,7 @@
 #include <mysql++.h>
 #include <ssqls.h>
 
-sql_create_33(schedules_t, 1, 33,
+sql_create_34(schedules_t, 1, 34,
 	mysqlpp::sql_varchar, uuid,
 	mysqlpp::sql_varchar, train_uid, 
 	mysqlpp::sql_date, date_from,
@@ -54,7 +54,8 @@ sql_create_33(schedules_t, 1, 33,
 	mysqlpp::sql_varchar, atoc_code,
 	mysqlpp::sql_varchar, ats_code,
 	mysqlpp::sql_varchar, rsid,
-	mysqlpp::sql_varchar, data_source);
+	mysqlpp::sql_varchar, data_source,
+	mysqlpp::Null<mysqlpp::sql_int>, id);
 	
 sql_create_10(schedules_stpcancel_t, 1, 10,
 	mysqlpp::sql_int, id,
@@ -116,7 +117,7 @@ sql_create_19(locations_change_t, 1, 19,
 	mysqlpp::sql_varchar, uic_code,
 	mysqlpp::sql_varchar, rsid);
 
-sql_create_18(associations_t, 1, 18,
+sql_create_19(associations_t, 1, 19,
 	mysqlpp::sql_varchar, main_train_uid,
 	mysqlpp::sql_varchar, assoc_train_uid,
 	mysqlpp::sql_date, date_from,
@@ -134,7 +135,8 @@ sql_create_18(associations_t, 1, 18,
 	mysqlpp::sql_varchar, base_location_suffix,
 	mysqlpp::sql_varchar, assoc_location_suffix,
 	mysqlpp::sql_varchar, assoc_type,
-	mysqlpp::sql_varchar, stp_indicator);
+	mysqlpp::sql_varchar, stp_indicator,
+	mysqlpp::Null<mysqlpp::sql_int>, id);
 
 sql_create_10(associations_stpcancel_t, 1, 10,
 	mysqlpp::sql_int, id,

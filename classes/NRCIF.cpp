@@ -156,7 +156,8 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 			else if(recordType == 5) { // associations
 				// process it...
 				CIFRecordNRAA *associationDetail = (CIFRecordNRAA *)record;
-				
+				int id;
+
 				// stp indicator is C, therefore it will want to do a search, so vent all the current
 				// stuff to update in...
 				if(associationDetail->stp_indicator == "C") {
@@ -173,8 +174,6 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 					
 					if(associationDetail->stp_indicator != "C") {
 						// find this association and remove it.
-						int id;
-						
 						try {
 							id = NRCIF::findIDForAssociation(conn, associationDetail, true, true, false);
 						}
@@ -185,7 +184,11 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 							return false;
 						}
 						
-						associationDelete.push_back(id);
+						if(associationDetail->transaction_type == "D") {
+							associationDelete.push_back(id);
+						} else if(associationDetail->transaction_type == "R") {
+							NRCIF::deleteAssociation(conn, id);
+						}
 					}
 					else if(associationDetail->stp_indicator == "C") {
 						// cancelling the cancellation of an LTP service... (i wish i could fit more cancels in here :))
@@ -211,24 +214,47 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 						// we have all the information we need anyway from this... so just need
 						// to put it in the database
 						
-						associationInsert.push_back(associations_t(associationDetail->main_train_uid,
-											 associationDetail->assoc_train_uid,
-											 mysqlpp::sql_date(associationDetail->date_from),
-											 mysqlpp::sql_date(associationDetail->date_to),
-											 associationDetail->assoc_mo,
-											 associationDetail->assoc_tu,
-											 associationDetail->assoc_we,
-											 associationDetail->assoc_th,
-											 associationDetail->assoc_fr,
-											 associationDetail->assoc_sa,
-											 associationDetail->assoc_su,
-											 associationDetail->category,
-											 associationDetail->date_indicator,
-											 associationDetail->location,
-											 associationDetail->base_location_suffix,
-											 associationDetail->assoc_location_suffix,
-											 associationDetail->assoc_type,
-											 associationDetail->stp_indicator));
+						if(associationDetail->transaction_type == "R") {
+							associationInsert.push_back(associations_t(associationDetail->main_train_uid,
+												 associationDetail->assoc_train_uid,
+												 mysqlpp::sql_date(associationDetail->date_from),
+												 mysqlpp::sql_date(associationDetail->date_to),
+												 associationDetail->assoc_mo,
+												 associationDetail->assoc_tu,
+												 associationDetail->assoc_we,
+												 associationDetail->assoc_th,
+												 associationDetail->assoc_fr,
+												 associationDetail->assoc_sa,
+												 associationDetail->assoc_su,
+												 associationDetail->category,
+												 associationDetail->date_indicator,
+												 associationDetail->location,
+												 associationDetail->base_location_suffix,
+												 associationDetail->assoc_location_suffix,
+												 associationDetail->assoc_type,
+												 associationDetail->stp_indicator,
+												 id));
+						} else {
+							associationInsert.push_back(associations_t(associationDetail->main_train_uid,
+												 associationDetail->assoc_train_uid,
+												 mysqlpp::sql_date(associationDetail->date_from),
+												 mysqlpp::sql_date(associationDetail->date_to),
+												 associationDetail->assoc_mo,
+												 associationDetail->assoc_tu,
+												 associationDetail->assoc_we,
+												 associationDetail->assoc_th,
+												 associationDetail->assoc_fr,
+												 associationDetail->assoc_sa,
+												 associationDetail->assoc_su,
+												 associationDetail->category,
+												 associationDetail->date_indicator,
+												 associationDetail->location,
+												 associationDetail->base_location_suffix,
+												 associationDetail->assoc_location_suffix,
+												 associationDetail->assoc_type,
+												 associationDetail->stp_indicator,
+												 mysqlpp::null));
+						}
 					}
 					else if(associationDetail->stp_indicator == "C") {
 						// this is a LTP cancellation ... 
@@ -286,6 +312,7 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 				}
 			
 				CIFRecordNRBS *scheduleDetail = (CIFRecordNRBS *)record;
+				int id;
 				
 				if(scheduleDetail->transaction_type == "R" || scheduleDetail->transaction_type == "D") {
 					if(header->update_type == "F") {
@@ -296,8 +323,6 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 					}
 					
 					if(scheduleDetail->stp_indicator != "C") { // deletion of a non STP cancel.
-						int id;
-					
 						try {
 							id = NRCIF::findIDForService(conn, scheduleDetail, true, false, false);
 						}
@@ -308,15 +333,21 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 							return false;
 						}
 					
-						scheduleDelete.push_back(id);
-						scheduleInsNo++;
+						if(scheduleDetail->transaction_type == "R") {
+							NRCIF::deleteService(conn, id);
+						} else if(scheduleDetail->transaction_type == "D") {
+							scheduleDelete.push_back(id);
+							scheduleInsNo++;
+						}
 					}
 					else if(scheduleDetail->stp_indicator == "C") {
 						// deletion of an STP cancel...
 						// push back into vector
 						scheduleSTPCancelDelete.push_back(scheduleDetail);
 						scheduleInsNo++;
-						continue; // so it doesn't get deleted
+						if(scheduleDetail->transaction_type == "D") {
+							continue; // so it doesn't get deleted
+						}
 					}
 				}
 									
@@ -339,44 +370,90 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 							mysqlpp::Query query = conn.query();
 							
 							// load up the schedule
-							schedules_t row(scheduleDetail->unique_id,
-										  scheduleDetail->uid,
-										  mysqlpp::sql_date(scheduleDetail->date_from),
-										  mysqlpp::sql_date(scheduleDetail->date_to),
-										  scheduleDetail->runs_mo,
-										  scheduleDetail->runs_tu,
-										  scheduleDetail->runs_we,
-										  scheduleDetail->runs_th,
-										  scheduleDetail->runs_fr,
-										  scheduleDetail->runs_sa,
-										  scheduleDetail->runs_su,
-										  scheduleDetail->bank_holiday,
-										  scheduleDetail->status,
-										  scheduleDetail->category,
-										  scheduleDetail->train_identity,
-										  scheduleDetail->headcode,
-										  scheduleDetail->service_code,
-										  scheduleDetail->portion_id,
-										  scheduleDetail->power_type,
-										  scheduleDetail->timing_load,
-										  scheduleDetail->speed,
-										  scheduleDetail->operating_characteristics,
-										  scheduleDetail->train_class,
-										  scheduleDetail->sleepers,
-										  scheduleDetail->reservations,
-										  scheduleDetail->catering_code,
-										  scheduleDetail->service_branding,
-										  scheduleDetail->stp_indicator,
-										  scheduleDetail->uic_code,
-										  scheduleDetail->atoc_code,
-										  scheduleDetail->ats_code,
-										  scheduleDetail->rsid,
-										  scheduleDetail->data_source);
+							if(scheduleDetail->transaction_type == "R") {
+								schedules_t row(scheduleDetail->unique_id,
+											  scheduleDetail->uid,
+											  mysqlpp::sql_date(scheduleDetail->date_from),
+											  mysqlpp::sql_date(scheduleDetail->date_to),
+											  scheduleDetail->runs_mo,
+											  scheduleDetail->runs_tu,
+											  scheduleDetail->runs_we,
+											  scheduleDetail->runs_th,
+											  scheduleDetail->runs_fr,
+											  scheduleDetail->runs_sa,
+											  scheduleDetail->runs_su,
+											  scheduleDetail->bank_holiday,
+											  scheduleDetail->status,
+											  scheduleDetail->category,
+											  scheduleDetail->train_identity,
+											  scheduleDetail->headcode,
+											  scheduleDetail->service_code,
+											  scheduleDetail->portion_id,
+											  scheduleDetail->power_type,
+											  scheduleDetail->timing_load,
+											  scheduleDetail->speed,
+											  scheduleDetail->operating_characteristics,
+											  scheduleDetail->train_class,
+											  scheduleDetail->sleepers,
+											  scheduleDetail->reservations,
+											  scheduleDetail->catering_code,
+											  scheduleDetail->service_branding,
+											  scheduleDetail->stp_indicator,
+											  scheduleDetail->uic_code,
+											  scheduleDetail->atoc_code,
+											  scheduleDetail->ats_code,
+											  scheduleDetail->rsid,
+											  scheduleDetail->data_source,
+											  id);
+											  
+								query.insert(row);
+								
+							} else { 
+								schedules_t row(scheduleDetail->unique_id,
+											  scheduleDetail->uid,
+											  mysqlpp::sql_date(scheduleDetail->date_from),
+											  mysqlpp::sql_date(scheduleDetail->date_to),
+											  scheduleDetail->runs_mo,
+											  scheduleDetail->runs_tu,
+											  scheduleDetail->runs_we,
+											  scheduleDetail->runs_th,
+											  scheduleDetail->runs_fr,
+											  scheduleDetail->runs_sa,
+											  scheduleDetail->runs_su,
+											  scheduleDetail->bank_holiday,
+											  scheduleDetail->status,
+											  scheduleDetail->category,
+											  scheduleDetail->train_identity,
+											  scheduleDetail->headcode,
+											  scheduleDetail->service_code,
+											  scheduleDetail->portion_id,
+											  scheduleDetail->power_type,
+											  scheduleDetail->timing_load,
+											  scheduleDetail->speed,
+											  scheduleDetail->operating_characteristics,
+											  scheduleDetail->train_class,
+											  scheduleDetail->sleepers,
+											  scheduleDetail->reservations,
+											  scheduleDetail->catering_code,
+											  scheduleDetail->service_branding,
+											  scheduleDetail->stp_indicator,
+											  scheduleDetail->uic_code,
+											  scheduleDetail->atoc_code,
+											  scheduleDetail->ats_code,
+											  scheduleDetail->rsid,
+											  scheduleDetail->data_source,
+											  mysqlpp::null);
+											  
+								query.insert(row);
+							}
 										  
-							query.insert(row);
 							query.execute();
 							
-							scheduleId = query.insert_id();
+							if(scheduleDetail->transaction_type == "N") {
+								scheduleId = query.insert_id();
+							} else {
+								scheduleId = id;
+							}
 						}
 						catch(mysqlpp::BadQuery& e) {
 							cerr << "Error (query): " << e.what() << endl;
@@ -606,7 +683,9 @@ void NRCIF::runSchedulesStpCancel(mysqlpp::Connection &conn, vector<CIFRecordNRB
 			// as CIF has no particular order, so move on...
 		}
 		
-		delete scheduleDetail;
+		if(scheduleDetail->transaction_type == "D") {
+			delete scheduleDetail;
+		}
 	}
 	scheduleSTPCancelDelete.clear();
 	
@@ -725,8 +804,8 @@ void NRCIF::deleteService(mysqlpp::Connection &conn, int id) {
 	query << "DELETE FROM schedules_t WHERE id = " << id;
 	query.execute();
 	
-	query << "DELETE FROM schedules_stpcancel_t WHERE id = " << id;
-	query.execute();
+	//query << "DELETE FROM schedules_stpcancel_t WHERE id = " << id;
+	//query.execute();
 }
 
 void NRCIF::deleteSTPServiceCancellation(mysqlpp::Connection &conn, int id, string cancelFrom) {

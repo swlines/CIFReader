@@ -306,9 +306,9 @@ int main(int argc, char *argv[]) {
 	cout << "INFO: Completed adding keys on locations" << endl;
 	
 	cout << "INFO: Building schedule cache... (departure locations)" << endl;
-	query.exec("INSERT INTO schedules_cache_t (`id`, `origin`, `origin_time`) SELECT id, tiploc_code as origin, departure as departure FROM locations_t WHERE location_type = 'LO'");
+	query.exec("INSERT INTO schedules_cache_t (`id`, `origin`, `origin_time`, `public_origin`) SELECT id, tiploc_code as origin, departure as departure, public_departure as public_origin FROM locations_t WHERE location_type = 'LO'");
 	cout << "INFO: Building schedule cache... (arrival locations)" << endl;
-	query.exec("UPDATE schedules_cache_t, locations_t SET schedules_cache_t.destination = locations_t.tiploc_code, schedules_cache_t.destination_time = locations_t.arrival WHERE locations_t.id = schedules_cache_t.id AND locations_t.location_type = 'LT'");
+	query.exec("UPDATE schedules_cache_t, locations_t SET schedules_cache_t.destination = locations_t.tiploc_code, schedules_cache_t.destination_time = locations_t.arrival, schedules_cache_t.public_destination = locations_t.public_arrival WHERE locations_t.id = schedules_cache_t.id AND locations_t.location_type = 'LT'");
 	cout << "INFO: Cache building completed..." << endl;
 	
 	cout << "INFO: Now moving current tables out of the way..." << endl;
