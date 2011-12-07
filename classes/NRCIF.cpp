@@ -178,7 +178,7 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 							id = NRCIF::findIDForAssociation(conn, associationDetail, true, true, false);
 						}
 						catch(int e){
-							cerr << endl << "ERROR: Unable to locate association to delete/amend. Exiting." << endl;
+							cerr << endl << "ERROR: Unable to locate association to delete/amend (main UID " << associationDetail->main_train_uid << ", associated train " << associationDetail->assoc_train_uid << " . Exiting." << endl;
 							delete record;
 							conn.disconnect();
 							return false;
@@ -269,7 +269,7 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 							associationDetail->stp_indicator = "C";
 						}
 						catch(int e) {
-							cerr << "ERROR: Unable to locate association to STP cancel" << endl;
+							cerr << "ERROR: Unable to locate association to STP cancel (main UID " << associationDetail->main_train_uid << ", assoc UID " << associationDetail->assoc_train_uid << ")" << endl;
 							delete record;
 							conn.disconnect();
 							return false;
@@ -327,7 +327,7 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 							id = NRCIF::findIDForService(conn, scheduleDetail, true, false, false);
 						}
 						catch(int e) {
-							cerr << "ERROR: Unable to locate service to delete/amend. Exiting." << endl;
+							cerr << "ERROR: Unable to locate service to delete/amend (train UID " << scheduleDetail->train_uid << "). Exiting." << endl;
 							delete record;
 							conn.disconnect();
 							return false;
@@ -701,7 +701,7 @@ void NRCIF::runSchedulesStpCancel(mysqlpp::Connection &conn, vector<CIFRecordNRB
 			scheduleDetail->stp_indicator = "C";
 		}
 		catch(int e) {
-			cerr << "ERROR: Unable to locate service to STP cancel" << endl;
+			cerr << "ERROR: Unable to locate service to STP cancel (train UID " << scheduleDetail->train_uid << ")" << endl;
 			delete scheduleDetail;
 			conn.disconnect();
 			return;
