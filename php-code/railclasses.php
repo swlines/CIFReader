@@ -9,6 +9,8 @@ class railServiceSearch {
 	const db_location = '';
 	const overlay 	  = true;
 		
+	public static $maxPeriod = 11;
+
 	public static function getPassengerCategories() {
 		$obj = new stdClass;
 		$obj->categories = array('OL', 'OO', 'XC', 'XX', 'XZ');
@@ -1393,78 +1395,6 @@ class railServiceSearch {
 		else return false;
 	}
 	
-	public function findWTTDiffs($whereCond, $diff = 1.5) {	
-		$query = 'SELECT schedules.id, schedules.train_uid, schedules.atoc_code, schedules.date_from, schedules.date_to, schedules.train_identity, schedules_cache.origin, origin.tps_description origin_desc, schedules_cache.destination, destination.tps_description destination_desc, schedules_cache.origin_time, schedules_cache.destination_time, schedules.runs_mo, schedules.runs_tu, schedules.runs_we, schedules.runs_th, schedules.runs_fr, schedules.runs_sa, schedules.runs_su, IF(schedules.stp_indicator = "P", "WTT", IF(schedules.stp_indicator = "O", "VAR", "STP")) stp FROM schedules LEFT JOIN schedules_cache ON schedules.id = schedules_cache.id LEFT JOIN tiplocs origin ON origin.tiploc = schedules_cache.origin LEFT JOIN tiplocs destination ON destination.tiploc = schedules_cache.destination WHERE (date_to >= "'. $this->escape(date('Y-m-d')) .'") AND (schedules.category IN ("OL", "OO", "XC", "XX", "XZ")) AND schedules.atoc_code = "'. $this->escape($whereCond) .'" ORDER BY FIELD(stp_indicator, "P", "O", "N") ASC, train_uid ASC';
-		
-		if($result = $this->query($query)) {
-			$returnArray = array();
-			
-			while($row = $result->fetch_object()) {
-				$out = $this->findDifferencesInScheduleWithID($row->id, $diff);
-				
-				if(is_array($out)) {
-					$row->differences = $out;
-					$row->runs = $this->generateDaysRun($row->runs_mo, $row->runs_tu, $row->runs_we, $row->runs_th, $row->runs_fr, $row->runs_sa, $row->runs_su);
-					$returnArray[] = $row;
-				}
-			}
-			
-			return (count($returnArray) > 0) ? $returnArray : NULL;
-		}
-		
-		return NULL;
-	}
-	
-	public function findDifferencesInScheduleWithID($id, $diff) {
-		if($result = $this->query('SELECT location_type, tiploc_code, tiploc_instance, arrival, public_arrival, departure, public_departure, platform FROM locations WHERE id = '. $this->escape($id) .' AND (public_arrival != "" OR public_departure != "") ORDER BY location_order ASC')) {
-			$returnArray = array();
-			$previousWTT = 0;
-			$previousGBTT = 0;
-		
-			while($row = $result->fetch_object()) {
-				// calculate arrival
-				if($row->arrival != "") {
-					$previousWTT = $this->convertTimeToMinsSinceMidnight($row->arrival, $previousWTT);
-				}
-				
-				if($row->public_arrival != "") {
-					$previousGBTT = $this->convertTimeToMinsSinceMidnight($row->public_arrival, $previousGBTT);
-				}
-				
-				// calculate the differential
-				if($row->arrival != "" && $row->public_arrival != "") {
-					$aDiff = $previousWTT - $previousGBTT;
-					
-					if($aDiff >= $diff) {
-						$returnArray[] = sprintf("Location %7s: WTT arrive %5s, GBTT arrive %4s - DIFF %s", $row->tiploc_code, $row->arrival, $row->public_arrival, $aDiff);
-					}
-				}
-				
-				// calculate departure
-				if($row->departure != "") {
-					$previousWTT = $this->convertTimeToMinsSinceMidnight($row->departure, $previousWTT);
-				}
-				
-				if($row->public_departure != "") {
-					$previousGBTT = $this->convertTimeToMinsSinceMidnight($row->public_departure, $previousGBTT);
-				}
-				
-				// calculate the differential
-				if($row->departure != "" && $row->public_departure != "") {
-					$aDiff = $previousWTT - $previousGBTT;
-					
-					if($aDiff >= $diff) {
-						$returnArray[] = sprintf("Location %7s: WTT depart %5s, GBTT depart %4s - DIFF %s", $row->tiploc_code, $row->departure, $row->public_departure, $aDiff);
-					}
-				}
-			}
-			
-			return (count($returnArray) > 0) ? $returnArray : NULL; 
-		}
-		
-		return NULL;
-	}
-	
 	private static function convertTimeToMinsSinceMidnight($time, $prv = 0) {
 		$t = (intval(substr($time,0,2))*60) + intval(substr($time,2,2));
 		if( substr($time,4,1) == "H") { $t += 0.5; }
@@ -1473,24 +1403,26 @@ class railServiceSearch {
 		return $t;
 	}
 	
-	public function outputCSVSchedules($atoc, $location) {
+	public function outputAllSchedules($atoc, $location) {
 		$date = new DateTime();
-		
+		$output = array();		
+
 		for($i = 0; $i < (90-2); $i++) {
 			$date->add(new DateInterval('P1D'));
 			list($day, $dt) = $this->getMySQLDate($date->format('Y-m-d'));
 			list($nextDay, $nextDt) = $this->getMySQLDate($date->format('Y-m-d').' +1 day');
 			
 			if($result = $this->query('SELECT schedules.train_uid, schedules.train_identity, schedules_cache.origin, schedules_cache.destination, origin.tps_description origin_desc, destination.tps_description destination_desc, schedules_cache.public_origin, schedules_cache.public_destination, IF(schedules.stp_indicator = "P", "WTT", IF(schedules.stp_indicator = "O", "VAR", "STP")) stp FROM schedules LEFT JOIN schedules_stpcancel ON schedules.id = schedules_stpcancel.id AND ("'. $day .'" BETWEEN schedules_stpcancel.cancel_from AND schedules_stpcancel.cancel_to) AND schedules_stpcancel.cancel_'. $dt .' =1 LEFT JOIN schedules scstp on (schedules.train_uid = scstp.train_uid and ("'. $day .'" between scstp.date_from and scstp.date_to) and scstp.runs_'. $dt .' = 1 and scstp.stp_indicator = "O")JOIN schedules_cache ON schedules.id = schedules_cache.id LEFT JOIN tiplocs origin ON origin.tiploc = schedules_cache.origin LEFT JOIN tiplocs destination ON destination.tiploc = schedules_cache.destination WHERE ("'. $day .'" BETWEEN schedules.date_from AND schedules.date_to) AND schedules.runs_'. $dt .'=1 AND (schedules.stp_indicator = "N" OR schedules.stp_indicator = "O" OR (schedules.stp_indicator = "P" AND schedules_stpcancel.id IS NULL AND scstp.id IS NULL)) AND (schedules.category IN ("OL", "OO", "XC", "XX", "XZ", "BR", "BS") OR schedules.status IN ("S", "4")) AND public_origin >= "0200"  AND schedules.atoc_code = "'. $this->escape($atoc) .'" UNION SELECT schedules.train_uid, schedules.train_identity, schedules_cache.origin, schedules_cache.destination, origin.tps_description origin_desc, destination.tps_description destination_desc, schedules_cache.public_origin, schedules_cache.public_destination, IF(schedules.stp_indicator = "P", "WTT", IF(schedules.stp_indicator = "O", "VAR", "STP")) stp FROM schedules LEFT JOIN schedules_stpcancel ON schedules.id = schedules_stpcancel.id AND ("'. $nextDay .'" BETWEEN schedules_stpcancel.cancel_from AND schedules_stpcancel.cancel_to) AND schedules_stpcancel.cancel_'. $nextDt .' =1 LEFT JOIN schedules scstp on (schedules.train_uid = scstp.train_uid and ("'. $nextDay .'" between scstp.date_from and scstp.date_to) and scstp.runs_'. $nextDt .' = 1 and scstp.stp_indicator = "O") JOIN schedules_cache ON schedules.id = schedules_cache.id LEFT JOIN tiplocs origin ON origin.tiploc = schedules_cache.origin LEFT JOIN tiplocs destination ON destination.tiploc = schedules_cache.destination WHERE ("'. $nextDay .'" BETWEEN schedules.date_from AND schedules.date_to) AND schedules.runs_'. $nextDt .'=1 AND (schedules.stp_indicator = "N" OR schedules.stp_indicator = "O" OR (schedules.stp_indicator = "P" AND schedules_stpcancel.id IS NULL AND scstp.id IS NULL)) AND (schedules.category IN ("OL", "OO", "XC", "XX", "XZ", "BR", "BS") OR schedules.status IN ("S", "4")) AND public_origin < "0200" AND schedules.atoc_code = "'. $this->escape($atoc) .'" ORDER BY origin_desc, destination_desc, FIELD(LEFT(public_origin,2), "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "00", "01")')) {
-			
-				$handle = fopen($location .'/'. strtoupper($atoc) .'/'. $day .'_'. $dt .'.csv', 'w+');
+				$dayout = array();
 				
 				while($row = $result->fetch_assoc())
-					fputcsv($handle, $row);
-				
-				fclose($handle);
-				unset($handle);
+					$dayout[] = $row;
+
+				$output[$day] = $row;
 			}
 		}
+
+		return $output;
+
 	}
 }
