@@ -30,4 +30,5 @@ class CIFRecord {
 		static string convertYYYYMMDDtoSQL(string date);
 		static string convertYYMMDDtoSQL(string date);
 		static string convertDDMMYYtoSQL(string date);
+		static string stringToLocationTitleCase(string loc);
 };

@@ -93,6 +93,8 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 		
 		progress_display progBar(fileSize, cout);
 		
+		updates updaterow(header->curr_file_ref, header->mainframe_user, mysqlpp::sql_date(header->extract_start), mysqlpp::sql_date(header->extract_end), header->update_type);
+		
 		mysqlpp::Query query = conn.query();
 		
 		// tiplocs
@@ -111,6 +113,8 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 		vector<int> scheduleDelete;
 		unsigned scheduleInsNo = 0;
 		
+		vector<CIFRecordNRAA *> associationSTPCancelDelete;
+		vector<CIFRecordNRAA *> associationSTPCancelInsert;
 		vector<CIFRecordNRBS *> scheduleSTPCancelDelete;
 		vector<CIFRecordNRBS *> scheduleSTPCancelInsert;
 		
@@ -118,7 +122,7 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 		try{
 			record = NRCIF::processLine(line);
 			unsigned recordType = record->getRecordType();
-			
+	
 			if(recordType == 1 || recordType == 2 || recordType == 3) { // tiploc insert or amend
 				CIFRecordNRTITA *tiplocRecord = (CIFRecordNRTITA *)record;
 				
@@ -157,12 +161,6 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 				// process it...
 				CIFRecordNRAA *associationDetail = (CIFRecordNRAA *)record;
 				int id;
-
-				// stp indicator is C, therefore it will want to do a search, so vent all the current
-				// stuff to update in...
-				if(associationDetail->stp_indicator == "C") {
-					NRCIF::runAssociation(conn, associationInsert, associationDelete);
-				}
 				
 				if(associationDetail->transaction_type == "R" || associationDetail->transaction_type == "D") {
 					if(header->update_type == "F") {
@@ -178,7 +176,7 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 							id = NRCIF::findIDForAssociation(conn, associationDetail, true, true, false);
 						}
 						catch(int e){
-							cerr << endl << "ERROR: Unable to locate association to delete/amend (main UID " << associationDetail->main_train_uid << ", associated train " << associationDetail->assoc_train_uid << " . Exiting." << endl;
+							cerr << endl << "ERROR: Unable to locate association to delete/amend. Exiting." << endl;
 							delete record;
 							conn.disconnect();
 							return false;
@@ -193,18 +191,11 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 					else if(associationDetail->stp_indicator == "C") {
 						// cancelling the cancellation of an LTP service... (i wish i could fit more cancels in here :))
 						
-						int id;
-						
-						// find the permament service relating to these dates
-						try {
-							associationDetail->stp_indicator = "P";
-							id = NRCIF::findIDForAssociation(conn, associationDetail, false, true, false);
-							associationDetail->stp_indicator = "C";
-							NRCIF::deleteSTPAssociationCancellation(conn, id, associationDetail->date_from);
-						}
-						catch(int e) {
-							// we can assume this occurs when the service has already been deleted.
-							// as CIF has no particular order, so move on...
+						// deletion of an STP cancel...
+						// push back into vector
+						associationSTPCancelDelete.push_back(associationDetail);
+						if(associationDetail->transaction_type == "D") {
+							continue; // so it doesn't get deleted
 						}
 					}
 				}
@@ -258,43 +249,17 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 					}
 					else if(associationDetail->stp_indicator == "C") {
 						// this is a LTP cancellation ... 
-						// locate the id of the service being cancelled...
+						// locate the id of the service being cancelled...						
 						
-						// get id of service being STP cancelled
-						int id;
-						try {
-							// temporarily update the association detail to find the right service
-							associationDetail->stp_indicator = "P";
-							id = NRCIF::findIDForAssociation(conn, associationDetail, false, true, false);
-							associationDetail->stp_indicator = "C";
-						}
-						catch(int e) {
-							cerr << "ERROR: Unable to locate association to STP cancel (main UID " << associationDetail->main_train_uid << ", assoc UID " << associationDetail->assoc_train_uid << ")" << endl;
-							delete record;
-							conn.disconnect();
-							return false;
-						}
-						
-						mysqlpp::Query query = conn.query();
-						
-						associations_stpcancel_t row(id, 
-												   mysqlpp::sql_date(associationDetail->date_from), 
-												   mysqlpp::sql_date(associationDetail->date_to),
-												   associationDetail->assoc_mo,
-												   associationDetail->assoc_tu,
-												   associationDetail->assoc_we,
-												   associationDetail->assoc_th,
-												   associationDetail->assoc_fr,
-												   associationDetail->assoc_sa,
-												   associationDetail->assoc_su);
-						
-						query.insert(row);
-						query.execute();
+						// load this record up into the vector
+						associationSTPCancelInsert.push_back(associationDetail);
+						continue; // to stop record deletion
 					}
 				}
 			}
 			else if(recordType == 6) { // insert
 				// just finish any tiploc stuff... done here as associations aren't guaranteed
+								
 				if(!tiplocComplete) {
 					NRCIF::runTiploc(conn, tiplocInsert, tiplocDelete);
 					tiplocComplete = true;
@@ -302,15 +267,15 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 				
 				if(!associationComplete) {
 					NRCIF::runAssociation(conn, associationInsert, associationDelete);
+					NRCIF::runAssociationsStpCancel(conn, associationSTPCancelDelete, associationSTPCancelInsert);
 					associationComplete = true;
 				}
 				
-				if(scheduleInsNo > 20000) {
+				if(scheduleInsNo > 40000) {
 					NRCIF::runSchedules(conn, locationInsert, locationsChangeInsert, scheduleDelete);
-					NRCIF::runSchedulesStpCancel(conn, scheduleSTPCancelDelete, scheduleSTPCancelInsert);
 					scheduleInsNo = 0;
 				}
-			
+							
 				CIFRecordNRBS *scheduleDetail = (CIFRecordNRBS *)record;
 				int id;
 				
@@ -327,7 +292,7 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 							id = NRCIF::findIDForService(conn, scheduleDetail, true, false, false);
 						}
 						catch(int e) {
-							cerr << "ERROR: Unable to locate service to delete/amend (train UID " << scheduleDetail->train_uid << "). Exiting." << endl;
+							cerr << "ERROR: Unable to locate service to delete/amend. Exiting." << endl;
 							delete record;
 							conn.disconnect();
 							return false;
@@ -371,8 +336,8 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 							
 							// load up the schedule
 							if(scheduleDetail->transaction_type == "R") {
-								schedules_t row(scheduleDetail->unique_id,
-											  scheduleDetail->uid,
+								schedules_t row(scheduleDetail->uid,
+											  scheduleDetail->unique_id,
 											  mysqlpp::sql_date(scheduleDetail->date_from),
 											  mysqlpp::sql_date(scheduleDetail->date_to),
 											  scheduleDetail->runs_mo,
@@ -404,13 +369,17 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 											  scheduleDetail->ats_code,
 											  scheduleDetail->rsid,
 											  scheduleDetail->data_source,
+											  scheduleDetail->bus,
+											  scheduleDetail->train,
+											  scheduleDetail->ship,
+											  scheduleDetail->passenger,
 											  id);
 											  
 								query.insert(row);
 								
 							} else { 
-								schedules_t row(scheduleDetail->unique_id,
-											  scheduleDetail->uid,
+								schedules_t row(scheduleDetail->uid,
+											  scheduleDetail->unique_id,
 											  mysqlpp::sql_date(scheduleDetail->date_from),
 											  mysqlpp::sql_date(scheduleDetail->date_to),
 											  scheduleDetail->runs_mo,
@@ -442,6 +411,10 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 											  scheduleDetail->ats_code,
 											  scheduleDetail->rsid,
 											  scheduleDetail->data_source,
+											  scheduleDetail->bus,
+											  scheduleDetail->train,
+											  scheduleDetail->ship,
+											  scheduleDetail->passenger,
 											  mysqlpp::null);
 											  
 								query.insert(row);
@@ -471,7 +444,7 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 							if(schedulerec->getRecordType() == 7) {
 								CIFRecordNRLOLILT *location = (CIFRecordNRLOLILT *)schedulerec;
 								
-								locationInsert.push_back(locations_t(scheduleId, location_order, location->record_type, location->tiploc, location->tiploc_instance, location->arrival, location->public_arrival, location->pass, location->departure, location->public_departure, location->platform, location->line, location->path, location->engineering_allowance, location->pathing_allowance, location->performance_allowance, location->activity));
+								locationInsert.push_back(locations_t(scheduleId, location_order, location->record_type, location->tiploc, location->tiploc_instance, location->arrival, location->public_arrival, location->pass, location->departure, location->public_departure, location->platform, location->line, location->path, location->engineering_allowance, location->pathing_allowance, location->performance_allowance, location->activity, location->public_call, location->actual_call, location->order_time));
 							
 								if(location->record_type == "LT") { delete schedulerec; break; }
 								
@@ -529,11 +502,11 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 		fileCurrent = file.tellg();
 		}
 		
-		if(scheduleInsNo > 0) {
-			NRCIF::runSchedules(conn, locationInsert, locationsChangeInsert, scheduleDelete);
-			NRCIF::runSchedulesStpCancel(conn, scheduleSTPCancelDelete, scheduleSTPCancelInsert);
-		}
+		NRCIF::runSchedules(conn, locationInsert, locationsChangeInsert, scheduleDelete);
+		NRCIF::runSchedulesStpCancel(conn, scheduleSTPCancelDelete, scheduleSTPCancelInsert);
 		
+		query.insert(updaterow);
+		query.execute();
 		cout << endl << "INFO: File complete..." << endl;
 		
 		if(!tiplocComplete) {
@@ -545,6 +518,7 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 		if(!associationComplete) {
 			cout << "INFO: Processing associations that weren't completed during run." << endl;
 			NRCIF::runAssociation(conn, associationInsert, associationDelete);
+			NRCIF::runAssociationsStpCancel(conn, associationSTPCancelDelete, associationSTPCancelInsert);
 			associationComplete = true;
 		}
 		
@@ -701,7 +675,7 @@ void NRCIF::runSchedulesStpCancel(mysqlpp::Connection &conn, vector<CIFRecordNRB
 			scheduleDetail->stp_indicator = "C";
 		}
 		catch(int e) {
-			cerr << "ERROR: Unable to locate service to STP cancel (train UID " << scheduleDetail->train_uid << ")" << endl;
+			cerr << "ERROR: Unable to locate service to STP cancel" << endl;
 			delete scheduleDetail;
 			conn.disconnect();
 			return;
@@ -725,6 +699,74 @@ void NRCIF::runSchedulesStpCancel(mysqlpp::Connection &conn, vector<CIFRecordNRB
 	mysqlpp::Query::SizeThresholdInsertPolicy<> insert_policy(5000);
 	query.insertfrom(schedules_stp.begin(), schedules_stp.end(), insert_policy);
 	schedules_stp.clear();
+}
+
+void NRCIF::runAssociationsStpCancel(mysqlpp::Connection &conn, vector<CIFRecordNRAA *> &associationSTPCancelDelete, vector<CIFRecordNRAA *> &associationSTPCancelInsert) {
+	mysqlpp::Query query = conn.query();
+	
+	int id;
+	CIFRecordNRAA *associationDetail;
+	
+	// run the schedule delete
+	vector<CIFRecordNRAA *>::iterator dit;
+	for(dit = associationSTPCancelDelete.begin(); dit < associationSTPCancelDelete.end(); dit++) {	
+		associationDetail = *dit;
+		
+						
+		// find the permament service relating to these dates
+		try {
+			associationDetail->stp_indicator = "P";
+			id = NRCIF::findIDForAssociation(conn, associationDetail, false, true, false);
+			associationDetail->stp_indicator = "C";
+			NRCIF::deleteSTPAssociationCancellation(conn, id, associationDetail->date_from);
+		}
+		catch(int e) {
+			// we can assume this occurs when the service has already been deleted.
+			// as CIF has no particular order, so move on...
+		}
+		
+		if(associationDetail->transaction_type == "D") {
+			delete associationDetail;
+		}
+	}
+	associationSTPCancelDelete.clear();
+	
+	vector<associations_stpcancel_t> associations_stp;
+	vector <CIFRecordNRAA *>::iterator iit;
+	for(iit = associationSTPCancelInsert.begin(); iit < associationSTPCancelInsert.end(); iit++) {
+		associationDetail = *iit;
+		
+		try {
+			// temporarily update the association detail to find the right service
+			associationDetail->stp_indicator = "P";
+			id = NRCIF::findIDForAssociation(conn, associationDetail, false, true, false);
+			associationDetail->stp_indicator = "C";
+		}
+		catch(int e) {
+			cerr << "ERROR: Unable to locate association to STP cancel (main UID " << associationDetail->main_train_uid << ", assoc UID " << associationDetail->assoc_train_uid << ")" << endl;
+			delete associationDetail;
+			conn.disconnect();
+			return;
+		}
+										
+		associations_stp.push_back(associations_stpcancel_t(id, 
+								   mysqlpp::sql_date(associationDetail->date_from), 
+								   mysqlpp::sql_date(associationDetail->date_to),
+								   associationDetail->assoc_mo,
+								   associationDetail->assoc_tu,
+								   associationDetail->assoc_we,
+								   associationDetail->assoc_th,
+								   associationDetail->assoc_fr,
+								   associationDetail->assoc_sa,
+								   associationDetail->assoc_su));
+								
+		delete associationDetail;
+	}
+	associationSTPCancelInsert.clear();
+	
+	mysqlpp::Query::SizeThresholdInsertPolicy<> insert_policy(5000);
+	query.insertfrom(associations_stp.begin(), associations_stp.end(), insert_policy);
+	associations_stp.clear();
 }
 
 int NRCIF::findIDForService(mysqlpp::Connection &conn, CIFRecordNRBS *s, bool exact, bool removeDoesntRunOn, bool noDateTo) {
@@ -821,22 +863,22 @@ int NRCIF::findIDForAssociation(mysqlpp::Connection &conn, CIFRecordNRAA *a, boo
 	// create string to check assoc on dates...
 	string assoc_on = "";
 	if(removeDoesntRunOn) {
-		if(a->assoc_mo != "" && a->assoc_mo != "0") assoc_on += " AND assoc_mo = '" + a->assoc_mo + "'";
-		if(a->assoc_tu != "" && a->assoc_tu != "0") assoc_on += " AND assoc_tu = '" + a->assoc_tu + "'";
-		if(a->assoc_we != "" && a->assoc_we != "0") assoc_on += " AND assoc_we = '" + a->assoc_we + "'";
-		if(a->assoc_th != "" && a->assoc_th != "0") assoc_on += " AND assoc_th = '" + a->assoc_th + "'";
-		if(a->assoc_fr != "" && a->assoc_fr != "0") assoc_on += " AND assoc_fr = '" + a->assoc_fr + "'";
-		if(a->assoc_sa != "" && a->assoc_sa != "0") assoc_on += " AND assoc_sa = '" + a->assoc_sa + "'";
-		if(a->assoc_su != "" && a->assoc_su != "0") assoc_on += " AND assoc_su = '" + a->assoc_su + "'";
+		if(a->assoc_mo != "" && a->assoc_mo != "0") assoc_on += " AND runs_mo = '" + a->assoc_mo + "'";
+		if(a->assoc_tu != "" && a->assoc_tu != "0") assoc_on += " AND runs_tu = '" + a->assoc_tu + "'";
+		if(a->assoc_we != "" && a->assoc_we != "0") assoc_on += " AND runs_we = '" + a->assoc_we + "'";
+		if(a->assoc_th != "" && a->assoc_th != "0") assoc_on += " AND runs_th = '" + a->assoc_th + "'";
+		if(a->assoc_fr != "" && a->assoc_fr != "0") assoc_on += " AND runs_fr = '" + a->assoc_fr + "'";
+		if(a->assoc_sa != "" && a->assoc_sa != "0") assoc_on += " AND runs_sa = '" + a->assoc_sa + "'";
+		if(a->assoc_su != "" && a->assoc_su != "0") assoc_on += " AND runs_su = '" + a->assoc_su + "'";
 	}
 	else {
-		if(a->assoc_mo != "") assoc_on += " AND assoc_mo = '" + a->assoc_mo + "'";
-		if(a->assoc_tu != "") assoc_on += " AND assoc_tu = '" + a->assoc_tu + "'";
-		if(a->assoc_we != "") assoc_on += " AND assoc_we = '" + a->assoc_we + "'";
-		if(a->assoc_th != "") assoc_on += " AND assoc_th = '" + a->assoc_th + "'";
-		if(a->assoc_fr != "") assoc_on += " AND assoc_fr = '" + a->assoc_fr + "'";
-		if(a->assoc_sa != "") assoc_on += " AND assoc_sa = '" + a->assoc_sa + "'";
-		if(a->assoc_su != "") assoc_on += " AND assoc_su = '" + a->assoc_su + "'";
+		if(a->assoc_mo != "") assoc_on += " AND runs_mo = '" + a->assoc_mo + "'";
+		if(a->assoc_tu != "") assoc_on += " AND runs_tu = '" + a->assoc_tu + "'";
+		if(a->assoc_we != "") assoc_on += " AND runs_we = '" + a->assoc_we + "'";
+		if(a->assoc_th != "") assoc_on += " AND runs_th = '" + a->assoc_th + "'";
+		if(a->assoc_fr != "") assoc_on += " AND runs_fr = '" + a->assoc_fr + "'";
+		if(a->assoc_sa != "") assoc_on += " AND runs_sa = '" + a->assoc_sa + "'";
+		if(a->assoc_su != "") assoc_on += " AND runs_su = '" + a->assoc_su + "'";
 	}
 	
 	// find this association
@@ -856,10 +898,8 @@ int NRCIF::findIDForAssociation(mysqlpp::Connection &conn, CIFRecordNRAA *a, boo
 			query << "SELECT id FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND (" << mysqlpp::quote << a->date_from << " BETWEEN date_from AND date_to) " << assoc_on << " AND stp_indicator = " << mysqlpp::quote <<  a->stp_indicator << " LIMIT 0,1";
 		}
 	}
-	
-	string queryString = query.str();
-	
-	if(mysqlpp::StoreQueryResult res = query.store()) {
+			
+	if(mysqlpp::StoreQueryResult res = query.store()) {		
 		if(res.num_rows() > 0) {
 			return atoi(res[0]["id"].c_str());
 		}

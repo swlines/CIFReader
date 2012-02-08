@@ -3,12 +3,11 @@ CIF Reader
 
 CIF Reader is a C++ parser that allows you to parse CIF files issued by Network Rail and ATCO-CIF files issued by Traveline (primarily for NPTDR imports).
 
-** The current release contains Network Rail CIF parsing only **
+** The current release contains Network Rail / ATOC open data CIF parsing only **
 
 CIF Parser requires:
-  - Boost, at least version 1.33 (may be earlier, that's what I have)
-  - uuid/uuid.h
-  - mysqlpp (custom compile - need to run ./configure with --with-field-limit=35)
+  - Boost, at least version 1.44 (for filesystem v3)
+  - mysqlpp (custom compile - need to run ./configure with --with-field-limit=40)
 
 To use it, you will need to create a SQL database, and run the SQL queries that are included in timetables.sql. You will need to create a file called databaseConfig.h in the root directory (where main.cpp is). Fill this in with the details shown below, in between the quotes, obviously...
 
@@ -18,7 +17,7 @@ const char* sqlDatabase = "";
 const char* sqlServer = "";
 
 I haven't included a Makefile, but this is the command I personally use:
-$ g++ -Wall -I/usr/include/mysql -I/usr/local/include/mysql++ -I/usr/include/boost -lmysqlclient -lmysqlpp -luuid -lboost_regex -lboost_filesystem -o parser main.cpp classes/CIFRecord.cpp
+$ g++ -Wall -I/usr/include/mysql -I/usr/local/include/mysql++ -I/usr/include/boost -lmysqlclient -lmysqlpp -lboost_regex -lboost_filesystem  -lboost_thread -lboost_system -o parser main.cpp classes/CIFRecord.cpp
 
 Usage: Just call ./parser <the file you want to read>
 
@@ -32,6 +31,14 @@ There are arguments to the program, they must be called separately and separated
 
 	-k or --disable-keys
 		Disables the keys on the tables to allow a much faster import (recommended if running a FULL extract). Re-enables and re-calculates keys after program runs.
+		
+So as an example... ./parser -t -k -d TTISF618.MCA
+
+Ethos:
+
+	My ethos with providing code is to allow you to build your own system with the tools that I have provided, but not to effectively make clones of something I have done as that's not very novel and rather boring in my opinion. Due to this, I only provide the code to make something *work* - any UI you will need to do yourself. :) I hope you will all appreciate that.
+	
+	I'd always appreciate it if you credit me somewhere for these tools if they have helped you in any work that you do - or email me to let me know in where and what wonderous ways you are using it! My email address is admin@swlines.co.uk. It's not a biggie, though, for me.
 
 
 Licence:

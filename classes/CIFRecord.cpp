@@ -18,6 +18,8 @@
     
 **/
 
+#define STRINGTOUPPER " ()&.'"
+
 #include <string>
 #include "CIFRecord.h"
 #include <boost/algorithm/string.hpp>
@@ -90,4 +92,22 @@ string CIFRecord::convertYYYYMMDDtoSQL(string date) {
 	 output += date.substr(6, 2); // date
 	 
 	 return output;
+}
+
+string CIFRecord::stringToLocationTitleCase(string loc) {
+	transform(loc.begin(), loc.end(), loc.begin(), ::tolower);
+	
+	loc[0] = toupper(loc[0]);
+	size_t f;
+	
+	f = loc.find_first_of(STRINGTOUPPER);
+	while(f != string::npos) {
+		if(int(f) != int(loc.length()-1)) {
+			loc[int(f)+1] = toupper(loc[int(f)+1]);
+		}
+		
+		f = loc.find_first_of(STRINGTOUPPER, f+1);
+	}
+	
+	return loc;
 }

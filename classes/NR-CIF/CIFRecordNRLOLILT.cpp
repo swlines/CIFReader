@@ -33,7 +33,8 @@ class CIFRecordNRLOLILT : public CIFRecord {
 		unsigned getRecordType();
 		CIFRecordNRLOLILT(string rec);
 		~CIFRecordNRLOLILT();
-		string record_type, tiploc, tiploc_instance, arrival, public_arrival, pass, departure, public_departure, platform, line, path, engineering_allowance, pathing_allowance, performance_allowance, activity;
+		string record_type, tiploc, tiploc_instance, arrival, public_arrival, pass, departure, public_departure, platform, line, path, engineering_allowance, pathing_allowance, performance_allowance, activity, order_time;
+		bool public_call, actual_call;
 };
 
 unsigned CIFRecordNRLOLILT::getRecordType() { 
@@ -100,6 +101,21 @@ CIFRecordNRLOLILT::CIFRecordNRLOLILT(string rec) {
 	
 	if(public_departure == "0000" || public_departure == "0000 ") { 
 		public_departure = "";
+	}
+	
+	// set up public call
+	public_call = (public_arrival != "" || public_departure != "");
+	actual_call = (arrival != "" || departure != "");
+	
+	//now create the ordertime field...
+	if(pass != "") {
+		order_time = pass;
+	}
+	else if(departure != "") { // departure time...
+		order_time = departure;
+	}
+	else { // arrival time...
+		order_time = arrival;
 	}
 }
 

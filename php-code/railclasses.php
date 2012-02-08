@@ -2,6 +2,8 @@
 
 class railServiceSearch {
 
+	/*** PLEASE NOTE THIS CODE DOES NOT WORK WITH THE CURRENT DATABASE SCHEMA ***/
+	
 	// change your settings to what you want them to use
 	const db_database = '';
 	const db_username = '';

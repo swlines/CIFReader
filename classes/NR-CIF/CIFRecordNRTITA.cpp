@@ -87,6 +87,9 @@ CIFRecordNRTITA::CIFRecordNRTITA(string rec) {
 	trim(capri_desc);
 	trim(tiploc_code);
 	trim(old_tiploc);
+	
+	tps_desc = CIFRecord::stringToLocationTitleCase(tps_desc);
+	capri_desc = CIFRecord::stringToLocationTitleCase(capri_desc);
 }
 
 CIFRecordNRTITA::~CIFRecordNRTITA() {

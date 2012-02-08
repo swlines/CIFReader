@@ -20,7 +20,6 @@
 
 #include <string>
 #include <boost/algorithm/string.hpp>
-#include <uuid/uuid.h>
 #ifndef _CIF_RECORD_INC
 #define _CIF_RECORD_INC
 	#include "../CIFRecord.h"
@@ -34,7 +33,9 @@ class CIFRecordNRBS : public CIFRecord {
 		void mergeWithBX(string line);
 		CIFRecordNRBS(string rec);
 		~CIFRecordNRBS();
-		string unique_id, transaction_type, uid, date_from, date_to, runs_mo, runs_tu, runs_we, runs_th, runs_fr, runs_sa, runs_su, bank_holiday, status, category, train_identity, headcode, service_code, portion_id, power_type, timing_load, speed, operating_characteristics, train_class, sleepers, reservations, catering_code, service_branding, stp_indicator, uic_code, atoc_code, ats_code, rsid, data_source;
+		string transaction_type, uid, unique_id, date_from, date_to, runs_mo, runs_tu, runs_we, runs_th, runs_fr, runs_sa, runs_su, bank_holiday, status, category, train_identity, headcode, service_code, portion_id, power_type, timing_load, speed, operating_characteristics, train_class, sleepers, reservations, catering_code, service_branding, stp_indicator, uic_code, atoc_code, ats_code, rsid, data_source;
+		
+		int train, bus, ship, passenger;
 };
 
 unsigned CIFRecordNRBS::getRecordType() { 
@@ -43,18 +44,6 @@ unsigned CIFRecordNRBS::getRecordType() {
 
 CIFRecordNRBS::CIFRecordNRBS(string rec) {
 	transaction_type 	= rec.substr(2,  1);
-	
-	// do not need to generate a uuid if we are deleting a file...
-	if(transaction_type == "N" || transaction_type == "R") {
-		char uuidBuffer[36];
-		uuid_t uuid;
-		uuid_generate(uuid);
-		uuid_unparse(uuid, uuidBuffer);
-	
-		stringstream ss;
-		ss << uuidBuffer;
-		ss >> unique_id;
-	}
 	
 	// needed to stop exception being thrown on short BS Delete record if it appears
 	try {
@@ -68,6 +57,7 @@ CIFRecordNRBS::CIFRecordNRBS(string rec) {
 		runs_fr				= rec.substr(25, 1);
 		runs_sa				= rec.substr(26, 1);
 		runs_su				= rec.substr(27, 1);
+
 		bank_holiday		= rec.substr(28, 1);
 		status				= rec.substr(29, 1);
 		category			= rec.substr(30, 2);
@@ -78,6 +68,7 @@ CIFRecordNRBS::CIFRecordNRBS(string rec) {
 		power_type			= rec.substr(50, 3);
 		timing_load			= rec.substr(53, 4);
 		speed				= rec.substr(57, 3);
+
 		operating_characteristics = rec.substr(60, 6);
 		train_class			= rec.substr(66, 1);
 		sleepers			= rec.substr(67, 1);
@@ -99,6 +90,7 @@ CIFRecordNRBS::CIFRecordNRBS(string rec) {
 		if(runs_sa == "0" || runs_sa == " ") trim(runs_sa);
 		if(runs_su == "0" || runs_su == " ") trim(runs_su);
 	}
+
 	
 	trim(bank_holiday);
 	trim(category);
@@ -110,6 +102,31 @@ CIFRecordNRBS::CIFRecordNRBS(string rec) {
 	trim(catering_code);
 	trim(service_branding);
 	trim(stp_indicator);
+
+	// unique id formed from schedule uid, date from and stp indicator
+	unique_id = uid + rec.substr(9,  6) + stp_indicator;
+	
+	bus = 0;
+	train = 1;
+	ship = 0;
+	passenger = 0;
+	
+	// bus
+	if(category == "BR" || category == "BS") {
+		bus = 1;
+		train = 0;
+	}
+	
+	// ship
+	else if(status == "S" || status == "4") {
+		ship = 1;
+		train = 0;
+	}
+	
+	// passenger
+	if(bus == 1 || ship == 1 || category == "OL" || category == "OO" || category == "XC" || category == "XX" || category == "XZ") {
+		passenger = 1;
+	}
 }
 
 void CIFRecordNRBS::mergeWithBX(string rec) {

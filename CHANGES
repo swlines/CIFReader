@@ -1,0 +1,8 @@
+CHANGES
+--
+
+The database schema has significantly changed in this version. uuids are no longer used and schedules are identified using a unique_id column forming of <train_uid><start date><stp indicator>. It should be noted, that when using updates, it is possible to result in two unique IDs if a schedule before the window is "updated" - this will show as a New schedule if its end date is extended into the current window.
+
+* It is now possible to detect, without any legwork, if a schedule is a bus, ship or passenger service using the new flags in the schedules column.
+* ATOC CIF is now supported, please note that once the progress bar has reached 100% it now means it has finished reading the file. All STP cancellations are performed at the end now due to the idiocy of trying to cancel schedules before they exist.
+* The PHP code included no longer works with the schema (as it was intended for the previous one) but should be workable if anyone wishes to fork it and modify suitably. There are a few minor column changes and these should fairly be noticable by the error messages that will probably come up.
