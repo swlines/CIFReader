@@ -101,7 +101,7 @@ int main(int argc, char *argv[]) {
 	mysqlpp::Query query = conn.query();
 	
 	// drop any old tables that might exist
-	query.exec("DROP TABLE IF EXISTS associations_old, associations_stpcancel_old, locations_old, locations_change_old, schedules_old, schedules_stpcancel_old, tiplocs_old, schedules_cache_old, associations_t, associations_stpcancel_t, locations_t, locations_change_t, schedules_t, schedules_stpcancel_t, tiplocs_t, schedules_cache_t");
+	query.exec("DROP TABLE IF EXISTS associations_old, associations_stpcancel_old, locations_old, locations_change_old, schedules_old, schedules_stpcancel_old, tiplocs_old, schedules_cache_old, tiplocs_cache_old, associations_t, associations_stpcancel_t, locations_t, locations_change_t, schedules_t, schedules_stpcancel_t, tiplocs_t, schedules_cache_t, tiplocs_cache_t");
 	
 	// ok, we are now going to begin the actual processing by creating temporary tables
 	cout << "INFO: Creating temporary tables..." << endl;
@@ -112,16 +112,17 @@ int main(int argc, char *argv[]) {
 		query.exec("CREATE TABLE locations_t LIKE locations");
 		
 		if(disableKeys) {
-			query.exec("ALTER TABLE locations_t DROP INDEX `tiploc_code`, DROP INDEX `arrival`,DROP INDEX `public_arrival`,DROP INDEX `pass`, DROP INDEX `departure`,DROP INDEX `public_departure`, DROP INDEX `location_type`, DROP INDEX `id`");
+			query.exec("ALTER TABLE locations_t DROP INDEX `location_type`, DROP INDEX `tiploc_code`, DROP INDEX `order_time`,DROP INDEX `public_call`,DROP INDEX `actual_call`, DROP INDEX `id`");
 		}
 		else {
-			query.exec("ALTER TABLE locations_t DROP INDEX `tiploc_code`, DROP INDEX `arrival`, DROP INDEX `public_arrival`, DROP INDEX `pass`, DROP INDEX `departure`, DROP INDEX `public_departure`, DROP INDEX `location_type`");
+			query.exec("ALTER TABLE locations_t DROP INDEX `location_type`, DROP INDEX `tiploc_code`, DROP INDEX `order_time`,DROP INDEX `public_call`,DROP INDEX `actual_call`");
 		}
 		
 		query.exec("CREATE TABLE locations_change_t LIKE locations_change");
 		query.exec("CREATE TABLE schedules_t LIKE schedules");
 		query.exec("CREATE TABLE schedules_stpcancel_t LIKE schedules_stpcancel");
 		query.exec("CREATE TABLE tiplocs_t LIKE tiplocs");
+		query.exec("CREATE TABLE tiplocs_cache_t LIKE tiplocs_cache");
 		query.exec("CREATE TABLE schedules_cache_t LIKE schedules_cache");
 	}
 	else {
@@ -159,6 +160,7 @@ int main(int argc, char *argv[]) {
 		
 		// create cache temp table
 		query.exec("CREATE TABLE schedules_cache_t LIKE schedules_cache");
+		query.exec("CREATE TABLE tiplocs_cache_t LIKE tiplocs_cache");
 	}
 	
 	cout << "INFO: Temporary tables created..." << endl;
@@ -226,7 +228,7 @@ int main(int argc, char *argv[]) {
 			for(boost::filesystem::directory_iterator itr(*dit); itr != end_itr; ++itr) {
 				if(boost::filesystem::is_directory(*itr)) continue;
 				else if(boost::filesystem::exists(*itr)) {
-					filePaths.insert(filePath + itr->leaf());
+					filePaths.insert(filePath + itr->path().filename().c_str());
 				}
 			}
 			
@@ -297,10 +299,10 @@ int main(int argc, char *argv[]) {
 	
 	cout << "INFO: Adding keys on locations (temp table) - may take a while..." << endl;
 	if(disableKeys) {
-		query.exec("ALTER TABLE locations_t ADD INDEX (`id`), ADD INDEX (`location_type`), ADD INDEX (`tiploc_code`), ADD INDEX (`arrival`), ADD INDEX  (`public_arrival`), ADD INDEX (`pass`), ADD INDEX (`departure`), ADD INDEX (`public_departure`)");
+		query.exec("ALTER TABLE locations_t ADD INDEX (`id`), ADD INDEX (`location_type`), ADD INDEX (`tiploc_code`), ADD INDEX (`order_time`), ADD INDEX  (`public_call`), ADD INDEX (`actual_call`)");
 	}
 	else {
-		query.exec("ALTER TABLE locations_t ADD INDEX (`location_type`), ADD INDEX (`tiploc_code`), ADD INDEX (`arrival`), ADD INDEX (`public_arrival`), ADD INDEX (`pass`), ADD INDEX (`departure`), ADD INDEX (`public_departure`)");
+		query.exec("ALTER TABLE locations_t ADD INDEX (`location_type`), ADD INDEX (`tiploc_code`), ADD INDEX (`order_time`), ADD INDEX  (`public_call`), ADD INDEX (`actual_call`)");
 	}
 	
 	cout << "INFO: Completed adding keys on locations" << endl;
@@ -309,10 +311,12 @@ int main(int argc, char *argv[]) {
 	query.exec("INSERT INTO schedules_cache_t (`id`, `origin`, `origin_time`, `public_origin`) SELECT id, tiploc_code as origin, departure as departure, public_departure as public_origin FROM locations_t WHERE location_type = 'LO'");
 	cout << "INFO: Building schedule cache... (arrival locations)" << endl;
 	query.exec("UPDATE schedules_cache_t, locations_t SET schedules_cache_t.destination = locations_t.tiploc_code, schedules_cache_t.destination_time = locations_t.arrival, schedules_cache_t.public_destination = locations_t.public_arrival WHERE locations_t.id = schedules_cache_t.id AND locations_t.location_type = 'LT'");
+	cout << "INFO: Building TIPLOC cache..." << endl;
+	query.exec("INSERT INTO tiplocs_cache_t SELECT additional_tiploc tiploc, t.nalco, t.tps_description, t.stanox, t.crs, t.description FROM locations_alternatives la LEFT JOIN tiplocs_t t ON la.tiploc = t.tiploc UNION SELECT t.* FROM tiplocs_t t LEFT JOIN locations_alternatives la ON la.additional_tiploc = t.tiploc WHERE la.tiploc IS NULL ORDER BY tiploc ASC");
 	cout << "INFO: Cache building completed..." << endl;
 	
 	cout << "INFO: Now moving current tables out of the way..." << endl;
-	query.exec("RENAME TABLE associations TO associations_old, associations_t TO associations, associations_stpcancel TO associations_stpcancel_old, associations_stpcancel_t TO associations_stpcancel, locations_change TO locations_change_old, locations_change_t TO locations_change, schedules TO schedules_old, schedules_t TO schedules, schedules_stpcancel TO schedules_stpcancel_old, schedules_stpcancel_t TO schedules_stpcancel, tiplocs TO tiplocs_old, tiplocs_t TO tiplocs, locations TO locations_old, locations_t TO locations, schedules_cache TO schedules_cache_old, schedules_cache_t TO schedules_cache");
+	query.exec("RENAME TABLE associations TO associations_old, associations_t TO associations, associations_stpcancel TO associations_stpcancel_old, associations_stpcancel_t TO associations_stpcancel, locations_change TO locations_change_old, locations_change_t TO locations_change, schedules TO schedules_old, schedules_t TO schedules, schedules_stpcancel TO schedules_stpcancel_old, schedules_stpcancel_t TO schedules_stpcancel, tiplocs TO tiplocs_old, tiplocs_t TO tiplocs, locations TO locations_old, locations_t TO locations, schedules_cache TO schedules_cache_old, schedules_cache_t TO schedules_cache, tiplocs_cache TO tiplocs_cache_old, tiplocs_cache_t TO tiplocs_cache");
 	cout << "INFO: Tables out of the way, finished!" << endl;
 	
 	conn.disconnect();
