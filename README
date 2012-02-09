@@ -17,7 +17,7 @@ const char* sqlDatabase = "";
 const char* sqlServer = "";
 
 I haven't included a Makefile, but this is the command I personally use:
-$ g++ -Wall -I/usr/include/mysql -I/usr/local/include/mysql++ -I/usr/include/boost -lmysqlclient -lmysqlpp -lboost_regex -lboost_filesystem  -lboost_thread -lboost_system -o parser main.cpp classes/CIFRecord.cpp
+$ g++ -Wall -I/usr/include/mysql -I/usr/local/include/mysql++ -I/usr/include/boost -lmysqlclient -lmysqlpp -lboost_regex -lboost_filesystem  -lboost_thread -lboost_system -o parser main.cpp classes/*.cpp classes/NR-CIF/*.cpp 
 
 Usage: Just call ./parser <the file you want to read>
 
