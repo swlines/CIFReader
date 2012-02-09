@@ -18,24 +18,13 @@
     
 **/
 
+#include "CIFRecordNRLOLILT.h"
+
 #include <string>
 #include <boost/algorithm/string.hpp>
-#ifndef _CIF_RECORD_INC
-#define _CIF_RECORD_INC
-	#include "../CIFRecord.h"
-#endif
 
 using namespace std;
 using namespace boost;
-
-class CIFRecordNRLOLILT : public CIFRecord {
-	public:
-		unsigned getRecordType();
-		CIFRecordNRLOLILT(string rec);
-		~CIFRecordNRLOLILT();
-		string record_type, tiploc, tiploc_instance, arrival, public_arrival, pass, departure, public_departure, platform, line, path, engineering_allowance, pathing_allowance, performance_allowance, activity, order_time;
-		bool public_call, actual_call;
-};
 
 unsigned CIFRecordNRLOLILT::getRecordType() { 
 	return 7;

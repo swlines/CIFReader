@@ -18,9 +18,17 @@
     
 **/
 
-// cif related stuff
-#include "NRCIF.h"
+#ifndef _SQLNETRAIL_
+	#define _SQLNETRAIL_ 1
+	#include "sqlNetRail.h"
+#endif
 
+// cif related stuff
+#ifndef _NRCIF_INC_
+	#define _NRCIF_INC_
+	#include "NRCIF.h"
+#endif
+	
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -30,6 +38,13 @@
 
 using namespace std;
 using namespace boost;
+
+/** hack for mysql++ **/
+class NR_CIF {
+	public: 
+		static void runAssociation(mysqlpp::Connection &conn, vector<associations_t> &associationInsert, vector<int> &associationDelete);
+		static void runSchedules(mysqlpp::Connection &conn, vector<locations_t> &locationInsert, vector<locations_change_t> &locationsChangeInsert, vector<int> &scheduleDelete);
+};
 
 bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 	ifstream file;
@@ -98,7 +113,7 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 		mysqlpp::Query query = conn.query();
 		
 		// tiplocs
-		vector<tiplocs_t> tiplocInsert;
+		vector<CIFRecordNRTITA *> tiplocInsert;
 		vector<string> tiplocDelete;
 		bool tiplocComplete = false;
 		
@@ -142,7 +157,8 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 					}
 				}
 				
-				tiplocInsert.push_back(tiplocs_t(tiplocRecord->tiploc_code, tiplocRecord->nlc, tiplocRecord->tps_desc, tiplocRecord->stanox, tiplocRecord->crs, tiplocRecord->capri_desc));
+				tiplocInsert.push_back(tiplocRecord);
+				continue;
 			}
 			else if(recordType == 4) { // tiploc delete
 				CIFRecordNRTD *tiplocRecord = (CIFRecordNRTD *)record;
@@ -266,13 +282,13 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 				}
 				
 				if(!associationComplete) {
-					NRCIF::runAssociation(conn, associationInsert, associationDelete);
+					NR_CIF::runAssociation(conn, associationInsert, associationDelete);
 					NRCIF::runAssociationsStpCancel(conn, associationSTPCancelDelete, associationSTPCancelInsert);
 					associationComplete = true;
 				}
 				
 				if(scheduleInsNo > 40000) {
-					NRCIF::runSchedules(conn, locationInsert, locationsChangeInsert, scheduleDelete);
+					NR_CIF::runSchedules(conn, locationInsert, locationsChangeInsert, scheduleDelete);
 					scheduleInsNo = 0;
 				}
 							
@@ -502,7 +518,7 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 		fileCurrent = file.tellg();
 		}
 		
-		NRCIF::runSchedules(conn, locationInsert, locationsChangeInsert, scheduleDelete);
+		NR_CIF::runSchedules(conn, locationInsert, locationsChangeInsert, scheduleDelete);
 		NRCIF::runSchedulesStpCancel(conn, scheduleSTPCancelDelete, scheduleSTPCancelInsert);
 		
 		query.insert(updaterow);
@@ -517,7 +533,7 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 		
 		if(!associationComplete) {
 			cout << "INFO: Processing associations that weren't completed during run." << endl;
-			NRCIF::runAssociation(conn, associationInsert, associationDelete);
+			NR_CIF::runAssociation(conn, associationInsert, associationDelete);
 			NRCIF::runAssociationsStpCancel(conn, associationSTPCancelDelete, associationSTPCancelInsert);
 			associationComplete = true;
 		}
@@ -570,7 +586,7 @@ CIFRecord* NRCIF::processLine(string record) {
 	}
 }
 
-void NRCIF::runTiploc(mysqlpp::Connection &conn, vector<tiplocs_t> &tiplocInsert, vector<string> &tiplocDelete) {
+void NRCIF::runTiploc(mysqlpp::Connection &conn, vector<CIFRecordNRTITA *> &tiplocInsert, vector<string> &tiplocDelete) {
 	mysqlpp::Query query = conn.query();
 
 	// delete the old tiplocs
@@ -582,18 +598,20 @@ void NRCIF::runTiploc(mysqlpp::Connection &conn, vector<tiplocs_t> &tiplocInsert
 	tiplocDelete.clear();
 
 	// insert the new tiplocs
-	vector<tiplocs_t>::iterator iit;
+	vector<tiplocs_t> tiplocs_ins;
+	vector<CIFRecordNRTITA *>::iterator iit;
 	for(iit = tiplocInsert.begin(); iit < tiplocInsert.end(); iit++) {
-		try {
-			query.insert(*iit);
-			query.execute();
-		}
-		catch(mysqlpp::BadQuery& e) {}
+		tiplocs_ins.push_back(tiplocs_t((*iit)->tiploc_code, (*iit)->nlc, (*iit)->tps_desc, (*iit)->stanox, (*iit)->crs, (*iit)->capri_desc));
+		delete *iit;
 	}
 	tiplocInsert.clear();
+	
+	mysqlpp::Query::SizeThresholdInsertPolicy<> insert_policy(5000);	
+	query.insertfrom(tiplocs_ins.begin(), tiplocs_ins.end(), insert_policy);
+	tiplocs_ins.clear();
 }
 
-void NRCIF::runAssociation(mysqlpp::Connection &conn, vector<associations_t> &associationInsert, vector<int> &associationDelete) {
+void NR_CIF::runAssociation(mysqlpp::Connection &conn, vector<associations_t> &associationInsert, vector<int> &associationDelete) {
 	mysqlpp::Query query = conn.query();
 	
 	// delete the old associations
@@ -616,7 +634,7 @@ void NRCIF::runAssociation(mysqlpp::Connection &conn, vector<associations_t> &as
 	associationInsert.clear();
 }
 
-void NRCIF::runSchedules(mysqlpp::Connection &conn, vector<locations_t> &locationInsert, vector<locations_change_t> &locationsChangeInsert, vector<int> &scheduleDelete) {
+void NR_CIF::runSchedules(mysqlpp::Connection &conn, vector<locations_t> &locationInsert, vector<locations_change_t> &locationsChangeInsert, vector<int> &scheduleDelete) {
 	mysqlpp::Query query = conn.query();
 	
 	// delete the old locations

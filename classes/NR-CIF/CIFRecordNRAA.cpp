@@ -18,24 +18,12 @@
     
 **/
 
+#include "CIFRecordNRAA.h"
 #include <string>
 #include <boost/algorithm/string.hpp>
 
-#ifndef _CIF_RECORD_INC
-#define _CIF_RECORD_INC
-	#include "../CIFRecord.h"
-#endif
-
 using namespace std;
 using namespace boost;
-
-class CIFRecordNRAA : public CIFRecord {
-	public:
-		unsigned getRecordType();
-		CIFRecordNRAA(string rec);
-		~CIFRecordNRAA();
-		string transaction_type, main_train_uid, assoc_train_uid, date_from, date_to, assoc_mo, assoc_tu, assoc_we, assoc_th, assoc_fr, assoc_sa, assoc_su, category, date_indicator, location, base_location_suffix, assoc_location_suffix, assoc_type, stp_indicator;
-};
 
 unsigned CIFRecordNRAA::getRecordType() { 
 	return 5;

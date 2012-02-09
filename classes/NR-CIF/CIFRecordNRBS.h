@@ -18,7 +18,10 @@
     
 **/
 
-#include "CIFRecordNRTD.h"
+#ifndef _CIFREC_INC
+	#define _CIFREC_INC
+	#include "../CIFRecord.h"
+#endif
 
 #include <string>
 #include <boost/algorithm/string.hpp>
@@ -26,16 +29,13 @@
 using namespace std;
 using namespace boost;
 
-unsigned CIFRecordNRTD::getRecordType() { 
-	return 4;
-}
-
-CIFRecordNRTD::CIFRecordNRTD(string rec) {
-	tiploc_code = rec.substr(2,  7);
-
-	trim(tiploc_code);
-}
-
-CIFRecordNRTD::~CIFRecordNRTD() {
-	tiploc_code.clear();
-}
+class CIFRecordNRBS : public CIFRecord {
+	public:
+		unsigned getRecordType();
+		void mergeWithBX(string line);
+		CIFRecordNRBS(string rec);
+		~CIFRecordNRBS();
+		string transaction_type, uid, unique_id, date_from, date_to, runs_mo, runs_tu, runs_we, runs_th, runs_fr, runs_sa, runs_su, bank_holiday, status, category, train_identity, headcode, service_code, portion_id, power_type, timing_load, speed, operating_characteristics, train_class, sleepers, reservations, catering_code, service_branding, stp_indicator, uic_code, atoc_code, ats_code, rsid, data_source;
+		
+		int train, bus, ship, passenger;
+};

@@ -18,22 +18,13 @@
     
 **/
 
+#include "CIFRecordNRTITA.h"
+
 #include <string>
 #include <boost/algorithm/string.hpp>
-#ifndef _CIF_RECORD_INC
-#define _CIF_RECORD_INC
-	#include "../CIFRecord.h"
-#endif
+
 using namespace std;
 using namespace boost;
-
-class CIFRecordNRTITA : public CIFRecord {
-	public:
-		unsigned getRecordType();
-		CIFRecordNRTITA(string rec);
-		~CIFRecordNRTITA();
-		string record_type, tiploc_code, nlc, tps_desc, stanox, crs, capri_desc, old_tiploc;
-};
 
 unsigned CIFRecordNRTITA::getRecordType() { 
 	if(record_type == "I") {

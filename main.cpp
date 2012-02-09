@@ -18,7 +18,11 @@
     
 **/
 
-#include "classes/NRCIF.cpp"
+#ifndef _NRCIF_INC_
+	#define _NRCIF_INC_
+	#include "classes/NRCIF.h"
+#endif
+
 #include "databaseConfig.h"
 #include <mysql++.h>
 #include <sys/stat.h>

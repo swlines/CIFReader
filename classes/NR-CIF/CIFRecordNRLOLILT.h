@@ -18,13 +18,22 @@
     
 **/
 
+#ifndef _CIFREC_INC
+	#define _CIFREC_INC
+	#include "../CIFRecord.h"
+#endif
+
 #include <string>
-#include <mysql++.h>
-#include "CIFRecord.h"
+#include <boost/algorithm/string.hpp>
 
 using namespace std;
+using namespace boost;
 
-class CIF {
-	/*public:
-		virtual void processFile(mysqlpp::Connection &conn, const char* filePath){};*/
+class CIFRecordNRLOLILT : public CIFRecord {
+	public:
+		unsigned getRecordType();
+		CIFRecordNRLOLILT(string rec);
+		~CIFRecordNRLOLILT();
+		string record_type, tiploc, tiploc_instance, arrival, public_arrival, pass, departure, public_departure, platform, line, path, engineering_allowance, pathing_allowance, performance_allowance, activity, order_time;
+		bool public_call, actual_call;
 };

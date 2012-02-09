@@ -18,23 +18,13 @@
     
 **/
 
+#include "CIFRecordNRCR.h"
+
 #include <string>
 #include <boost/algorithm/string.hpp>
-#ifndef _CIF_RECORD_INC
-#define _CIF_RECORD_INC
-	#include "../CIFRecord.h"
-#endif
 
 using namespace std;
 using namespace boost;
-
-class CIFRecordNRCR : public CIFRecord {
-	public:
-		unsigned getRecordType();
-		CIFRecordNRCR(string rec);
-		~CIFRecordNRCR();
-		string tiploc, tiploc_suffix, category, train_identity, headcode, service_code, portion_id, power_type, timing_load, speed, operating_characteristics, train_class, sleepers, reservations, catering_code, service_branding, uic_code, rsid;
-};
 
 unsigned CIFRecordNRCR::getRecordType() { 
 	return 8;

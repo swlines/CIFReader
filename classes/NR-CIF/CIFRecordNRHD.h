@@ -1,6 +1,6 @@
 /**
 
-    CIF Reader - parser of Network Rail and ATCO-CIF files.
+	CIF Reader - parser of Network Rail and ATCO-CIF files.
     Copyright (C) 2011 Tom Cairns
 
     This program is free software: you can redistribute it and/or modify
@@ -18,19 +18,22 @@
     
 **/
 
-// cif related stuff
-#include "NRCIF.h"
+#ifndef _CIFREC_INC
+	#define _CIFREC_INC
+	#include "../CIFRecord.h"
+#endif
 
-// database related stuff
-#include "sqlNetRail.h"
-#include "databaseConfig.h"
-
-#include <iostream>
-#include <fstream>
 #include <string>
-#include <vector>
-#include <boost/progress.hpp>
-#include <mysql++.h>
+#include <boost/algorithm/string.hpp>
+#include <boost/regex.hpp>
 
 using namespace std;
 using namespace boost;
+
+class CIFRecordNRHD : public CIFRecord {
+	public:
+		unsigned getRecordType();
+		CIFRecordNRHD(string rec);
+		~CIFRecordNRHD();
+		string mainframe_id, date_extract, time_extract, curr_file_ref, last_file_ref, update_type, extract_start, extract_end, mainframe_user, extract_date;
+};

@@ -18,26 +18,17 @@
     
 **/
 
+#include "CIFRecordNRHD.h"
+
 #include <string>
 #include <boost/algorithm/string.hpp>
 #include <boost/regex.hpp>
-#ifndef _CIF_RECORD_INC
-#define _CIF_RECORD_INC
-	#include "../CIFRecord.h"
-#endif
+
 using namespace std;
 using namespace boost;
 
-class CIFRecordNRHD : public CIFRecord {
-	public:
-		unsigned getRecordType();
-		CIFRecordNRHD(string rec);
-		~CIFRecordNRHD();
-		string mainframe_id, date_extract, time_extract, curr_file_ref, last_file_ref, update_type, extract_start, extract_end, mainframe_user, extract_date;
-};
-
 unsigned CIFRecordNRHD::getRecordType() { 
-	return 00;
+	return 0;
 }
 
 CIFRecordNRHD::CIFRecordNRHD(string rec) {
