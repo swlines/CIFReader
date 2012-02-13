@@ -49,12 +49,12 @@ class NRCIF {
 	private:
 		static CIFRecord* processLine(string record);
 		static void runTiploc(mysqlpp::Connection &conn, vector<CIFRecordNRTITA *> &tiplocInsert, vector<string> &tiplocDelete);
-		static void runSchedulesStpCancel(mysqlpp::Connection &conn, vector<CIFRecordNRBS *> &scheduleSTPCancelDelete, vector<CIFRecordNRBS *> &scheduleSTPCancelInsert);
-		static void runAssociationsStpCancel(mysqlpp::Connection &conn, vector<CIFRecordNRAA *> &associationSTPCancelDelete, vector<CIFRecordNRAA *> &associationSTPCancelInsert);
+		static void runSchedulesStpCancel(mysqlpp::Connection &conn, CIFRecordNRHD *header, vector<CIFRecordNRBS *> &scheduleSTPCancelDelete, vector<CIFRecordNRBS *> &scheduleSTPCancelInsert);
+		static void runAssociationsStpCancel(mysqlpp::Connection &conn, CIFRecordNRHD *header, vector<CIFRecordNRAA *> &associationSTPCancelDelete, vector<CIFRecordNRAA *> &associationSTPCancelInsert);
 		
-		static int findIDForService(mysqlpp::Connection &conn, CIFRecordNRBS *s, bool exact, bool removeDoesntRunOn, bool noDateTo);
+		static int findIDForService(mysqlpp::Connection &conn, CIFRecordNRBS *s, CIFRecordNRHD *h, bool exact, bool removeDoesntRunOn, bool noDateTo);
 		static void deleteSTPServiceCancellation(mysqlpp::Connection &conn, int id, string cancelFrom);
 		
-		static int findIDForAssociation(mysqlpp::Connection &conn, CIFRecordNRAA *a, bool exact, bool removeDoesntRunOn, bool noDateTo);
+		static int findIDForAssociation(mysqlpp::Connection &conn, CIFRecordNRAA *a, CIFRecordNRHD *h, bool exact, bool removeDoesntRunOn, bool noDateTo);
 		static void deleteSTPAssociationCancellation(mysqlpp::Connection &conn, int id, string cancelFrom);
 };

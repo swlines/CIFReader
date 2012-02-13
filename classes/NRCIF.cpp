@@ -189,13 +189,18 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 					if(associationDetail->stp_indicator != "C") {
 						// find this association and remove it.
 						try {
-							id = NRCIF::findIDForAssociation(conn, associationDetail, true, true, false);
+							id = NRCIF::findIDForAssociation(conn, associationDetail, header, true, true, false);
 						}
 						catch(int e){
 							cerr << endl << "ERROR: Unable to locate association to delete/amend. Exiting." << endl;
 							delete record;
 							conn.disconnect();
 							return false;
+						}
+						
+						while(id < 0) {
+							NRCIF::deleteAssociation(conn, -id);
+							id = NRCIF::findIDForAssociation(conn, associationDetail, header, true, true, false);
 						}
 						
 						if(associationDetail->transaction_type == "D") {
@@ -220,6 +225,25 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 					if(associationDetail->stp_indicator != "C") {
 						// we have all the information we need anyway from this... so just need
 						// to put it in the database
+						
+						// i'm aware of an error in CIF data where we can get more than one association that is essentially the same
+						// that can cause an issue upstream, so to resolve this...run a quick check
+						// in this instance, I *expect* an exception to be thrown. This trace has already been done for 
+						// associations when under revision, so only cover new schedules here...
+						if(header->update_type == "U" && associationDetail->transaction_type == "N") {
+							try {
+								id = NRCIF::findIDForAssociation(conn, associationDetail, header, true, false, false);
+								while(id < 0) {
+									NRCIF::deleteAssociation(conn, -id);
+									id = NRCIF::findIDForAssociation(conn, associationDetail, header, true, false, false);
+								}
+								
+								NRCIF::deleteAssociation(conn, id);
+								
+								// as we have just deleted something, to maintain historical cancellations make sure that this is a revise
+								associationDetail->transaction_type = "R";
+							}catch(int e){}
+						}
 						
 						if(associationDetail->transaction_type == "R") {
 							associationInsert.push_back(associations_t(associationDetail->main_train_uid,
@@ -283,7 +307,7 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 				
 				if(!associationComplete) {
 					NR_CIF::runAssociation(conn, associationInsert, associationDelete);
-					NRCIF::runAssociationsStpCancel(conn, associationSTPCancelDelete, associationSTPCancelInsert);
+					NRCIF::runAssociationsStpCancel(conn, header, associationSTPCancelDelete, associationSTPCancelInsert);
 					associationComplete = true;
 				}
 				
@@ -305,13 +329,18 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 					
 					if(scheduleDetail->stp_indicator != "C") { // deletion of a non STP cancel.
 						try {
-							id = NRCIF::findIDForService(conn, scheduleDetail, true, false, false);
+							id = NRCIF::findIDForService(conn, scheduleDetail, header, true, false, false);
 						}
 						catch(int e) {
-							cerr << "ERROR: Unable to locate service to delete/amend. Exiting." << endl;
+							cerr << "ERROR: Unable to locate service to delete/amend ( " << scheduleDetail->uid << "). Exiting." << endl;
 							delete record;
 							conn.disconnect();
 							return false;
+						}
+						
+						while(id < 0) {
+							NRCIF::deleteService(conn, -id);
+							id = NRCIF::findIDForService(conn, scheduleDetail, header, true, false, false);
 						}
 					
 						if(scheduleDetail->transaction_type == "R") {
@@ -338,6 +367,24 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 						// the BX record is always the next line, so just parse this straight back to the scheduleDetail.
 						getline(file, line);
 						scheduleDetail->mergeWithBX(line);
+						
+						// i'm aware of an error in CIF data where we can get more than one unique id (that is, <uid><start><stp>)
+						// that can cause an issue upstream, so to resolve this...run a quick check
+						// in this instance, I *expect* an exception to be thrown. This trace has already been done for 
+						// schedules when under revision, so only cover new schedules here...
+						if(header->update_type == "U" && scheduleDetail->transaction_type == "N") {
+							try {
+								id = NRCIF::findIDForService(conn, scheduleDetail, header, true, false, false);
+								while(id < 0) {
+									NRCIF::deleteService(conn, -id);
+									id = NRCIF::findIDForService(conn, scheduleDetail, header, true, false, false);
+								}
+								
+								NRCIF::deleteService(conn, id);
+								// as we have just deleted something, to maintain historical cancellations make sure that this is a revise
+								scheduleDetail->transaction_type = "R";
+							}catch(int e){}
+						}
 					
 					// ok set it up and now get schedule locations
 						vector<locations_t> locs;
@@ -519,7 +566,7 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 		}
 		
 		NR_CIF::runSchedules(conn, locationInsert, locationsChangeInsert, scheduleDelete);
-		NRCIF::runSchedulesStpCancel(conn, scheduleSTPCancelDelete, scheduleSTPCancelInsert);
+		NRCIF::runSchedulesStpCancel(conn, header, scheduleSTPCancelDelete, scheduleSTPCancelInsert);
 		
 		query.insert(updaterow);
 		query.execute();
@@ -534,7 +581,7 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 		if(!associationComplete) {
 			cout << "INFO: Processing associations that weren't completed during run." << endl;
 			NR_CIF::runAssociation(conn, associationInsert, associationDelete);
-			NRCIF::runAssociationsStpCancel(conn, associationSTPCancelDelete, associationSTPCancelInsert);
+			NRCIF::runAssociationsStpCancel(conn, header, associationSTPCancelDelete, associationSTPCancelInsert);
 			associationComplete = true;
 		}
 		
@@ -652,7 +699,7 @@ void NR_CIF::runSchedules(mysqlpp::Connection &conn, vector<locations_t> &locati
 	locationsChangeInsert.clear();
 }
 
-void NRCIF::runSchedulesStpCancel(mysqlpp::Connection &conn, vector<CIFRecordNRBS *> &scheduleSTPCancelDelete, vector<CIFRecordNRBS *> &scheduleSTPCancelInsert) {
+void NRCIF::runSchedulesStpCancel(mysqlpp::Connection &conn, CIFRecordNRHD *header, vector<CIFRecordNRBS *> &scheduleSTPCancelDelete, vector<CIFRecordNRBS *> &scheduleSTPCancelInsert) {
 	mysqlpp::Query query = conn.query();
 	
 	int id;
@@ -666,7 +713,7 @@ void NRCIF::runSchedulesStpCancel(mysqlpp::Connection &conn, vector<CIFRecordNRB
 		// find the permament service relating to these dates
 		try {
 			scheduleDetail->stp_indicator = "P"; 
-			id = NRCIF::findIDForService(conn, scheduleDetail, false, true, false);
+			id = NRCIF::findIDForService(conn, scheduleDetail, header, false, true, false);
 			scheduleDetail->stp_indicator = "C";
 			NRCIF::deleteSTPServiceCancellation(conn, id, scheduleDetail->date_from);
 		}
@@ -689,7 +736,7 @@ void NRCIF::runSchedulesStpCancel(mysqlpp::Connection &conn, vector<CIFRecordNRB
 		try {
 			// temporarily update service to find the schedule to cancel
 			scheduleDetail->stp_indicator = "P";
-			id = NRCIF::findIDForService(conn, scheduleDetail, false, true, false);
+			id = NRCIF::findIDForService(conn, scheduleDetail, header, false, true, false);
 			scheduleDetail->stp_indicator = "C";
 		}
 		catch(int e) {
@@ -719,7 +766,7 @@ void NRCIF::runSchedulesStpCancel(mysqlpp::Connection &conn, vector<CIFRecordNRB
 	schedules_stp.clear();
 }
 
-void NRCIF::runAssociationsStpCancel(mysqlpp::Connection &conn, vector<CIFRecordNRAA *> &associationSTPCancelDelete, vector<CIFRecordNRAA *> &associationSTPCancelInsert) {
+void NRCIF::runAssociationsStpCancel(mysqlpp::Connection &conn, CIFRecordNRHD *header, vector<CIFRecordNRAA *> &associationSTPCancelDelete, vector<CIFRecordNRAA *> &associationSTPCancelInsert) {
 	mysqlpp::Query query = conn.query();
 	
 	int id;
@@ -734,7 +781,7 @@ void NRCIF::runAssociationsStpCancel(mysqlpp::Connection &conn, vector<CIFRecord
 		// find the permament service relating to these dates
 		try {
 			associationDetail->stp_indicator = "P";
-			id = NRCIF::findIDForAssociation(conn, associationDetail, false, true, false);
+			id = NRCIF::findIDForAssociation(conn, associationDetail, header, false, true, false);
 			associationDetail->stp_indicator = "C";
 			NRCIF::deleteSTPAssociationCancellation(conn, id, associationDetail->date_from);
 		}
@@ -757,7 +804,7 @@ void NRCIF::runAssociationsStpCancel(mysqlpp::Connection &conn, vector<CIFRecord
 		try {
 			// temporarily update the association detail to find the right service
 			associationDetail->stp_indicator = "P";
-			id = NRCIF::findIDForAssociation(conn, associationDetail, false, true, false);
+			id = NRCIF::findIDForAssociation(conn, associationDetail, header, false, true, false);
 			associationDetail->stp_indicator = "C";
 		}
 		catch(int e) {
@@ -787,7 +834,7 @@ void NRCIF::runAssociationsStpCancel(mysqlpp::Connection &conn, vector<CIFRecord
 	associations_stp.clear();
 }
 
-int NRCIF::findIDForService(mysqlpp::Connection &conn, CIFRecordNRBS *s, bool exact, bool removeDoesntRunOn, bool noDateTo) {
+int NRCIF::findIDForService(mysqlpp::Connection &conn, CIFRecordNRBS *s, CIFRecordNRHD *h, bool exact, bool removeDoesntRunOn, bool noDateTo) {
 	mysqlpp::Query query = conn.query();
 	
 	// create string to check runs on dates...
@@ -811,35 +858,35 @@ int NRCIF::findIDForService(mysqlpp::Connection &conn, CIFRecordNRBS *s, bool ex
 		if(s->runs_su != "") runs_on += " AND runs_su = '" + s->runs_su + "'";
 	}
 	
+	
+	
 	// find this service
 	if(exact) {
-		if(s->date_to != "" && !noDateTo) {
-			query << "SELECT id FROM schedules_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND date_from = " << mysqlpp::quote << s->date_from << " AND date_to = " << mysqlpp::quote << s->date_to << " AND stp_indicator = " << mysqlpp::quote <<  s->stp_indicator << " LIMIT 0,1";
-		}
-		else {
-			query << "SELECT id FROM schedules_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND date_from = " << mysqlpp::quote << s->date_from << " AND stp_indicator = " << mysqlpp::quote <<  s->stp_indicator << " LIMIT 0,1";
-		}
+		query << "SELECT id FROM schedules_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND date_from = " << mysqlpp::quote << s->date_from << " AND stp_indicator = " << mysqlpp::quote <<  s->stp_indicator;
 	}
 	else {
 		if(s->date_to != "" && !noDateTo) {
-			query << "SELECT id FROM schedules_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND (" << mysqlpp::quote << s->date_from << " BETWEEN date_from AND date_to) AND (" << mysqlpp::quote << s->date_to << " BETWEEN date_from AND date_to) " <<  runs_on << " AND stp_indicator = " << mysqlpp::quote <<  s->stp_indicator << "  LIMIT 0,1"; 
+			query << "SELECT id FROM schedules_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND (" << mysqlpp::quote << s->date_from << " BETWEEN date_from AND date_to) AND (" << mysqlpp::quote << s->date_to << " BETWEEN date_from AND date_to) " <<  runs_on << " AND stp_indicator = " << mysqlpp::quote <<  s->stp_indicator; 
 		}
 		else {
-			query << "SELECT id FROM schedules_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND (" << mysqlpp::quote << s->date_from << " BETWEEN date_from AND date_to) " << runs_on << " AND stp_indicator = " << mysqlpp::quote <<  s->stp_indicator << " LIMIT 0,1";
+			query << "SELECT id FROM schedules_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND (" << mysqlpp::quote << s->date_from << " BETWEEN date_from AND date_to) " << runs_on << " AND stp_indicator = " << mysqlpp::quote <<  s->stp_indicator;
 		}
 	}
 	
 	string queryString = query.str();
 		
 	if(mysqlpp::StoreQueryResult res = query.store()) {
-		if(res.num_rows() > 0) {
+		if(res.num_rows() > 1 && exact) {
+			return -atoi(res[0]["id"].c_str());
+		}
+		else if(res.num_rows() > 0) {
 			return atoi(res[0]["id"].c_str());
 		}
 		
-		if(!noDateTo)
-			return NRCIF::findIDForService(conn, s, exact, removeDoesntRunOn, true);
-		else if(noDateTo && !removeDoesntRunOn) 
-			return NRCIF::findIDForService(conn, s, exact, true, true);
+		if(!noDateTo && !exact)
+			return NRCIF::findIDForService(conn, s, h, exact, removeDoesntRunOn, true);
+		else if(noDateTo && !removeDoesntRunOn && !exact) 
+			return NRCIF::findIDForService(conn, s, h, exact, true, true);
 		else {
 			// uncomment this if you want some verbose output on errors
 			//cout << endl << "Error query: " << queryString << endl;
@@ -875,7 +922,7 @@ void NRCIF::deleteSTPServiceCancellation(mysqlpp::Connection &conn, int id, stri
 	query.execute();
 }
 
-int NRCIF::findIDForAssociation(mysqlpp::Connection &conn, CIFRecordNRAA *a, bool exact, bool removeDoesntRunOn, bool noDateTo) {
+int NRCIF::findIDForAssociation(mysqlpp::Connection &conn, CIFRecordNRAA *a, CIFRecordNRHD *h, bool exact, bool removeDoesntRunOn, bool noDateTo) {
 	mysqlpp::Query query = conn.query(); 
 	
 	// create string to check assoc on dates...
@@ -900,32 +947,30 @@ int NRCIF::findIDForAssociation(mysqlpp::Connection &conn, CIFRecordNRAA *a, boo
 	}
 	
 	// find this association
-	if(exact) {
-		if(a->date_to != "" && !noDateTo) {
-			query << "SELECT id FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND date_from = " << mysqlpp::quote << a->date_from << " AND date_to = " << mysqlpp::quote << a->date_to << " AND stp_indicator = " << mysqlpp::quote <<  a->stp_indicator << "  LIMIT 0,1"; 
-		}
-		else {
-			query << "SELECT id FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND date_from = " << mysqlpp::quote << a->date_from << " AND stp_indicator = " << mysqlpp::quote <<  a->stp_indicator << " LIMIT 0,1";
-		}
+	if(exact) {		
+		query << "SELECT id FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND date_from = " << mysqlpp::quote << a->date_from << " AND stp_indicator = " << mysqlpp::quote <<  a->stp_indicator;
 	}
 	else{
 		if(a->date_to != "" && !noDateTo) {
-			query << "SELECT id FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND (" << mysqlpp::quote << a->date_from << " BETWEEN date_from AND date_to) AND (" << mysqlpp::quote << a->date_to << " BETWEEN date_from AND date_to) " << assoc_on << " AND stp_indicator = " << mysqlpp::quote <<  a->stp_indicator << "  LIMIT 0,1"; 
+			query << "SELECT id FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND (" << mysqlpp::quote << a->date_from << " BETWEEN date_from AND date_to) AND (" << mysqlpp::quote << a->date_to << " BETWEEN date_from AND date_to) " << assoc_on << " AND stp_indicator = " << mysqlpp::quote <<  a->stp_indicator; 
 		}
 		else {
-			query << "SELECT id FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND (" << mysqlpp::quote << a->date_from << " BETWEEN date_from AND date_to) " << assoc_on << " AND stp_indicator = " << mysqlpp::quote <<  a->stp_indicator << " LIMIT 0,1";
+			query << "SELECT id FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND (" << mysqlpp::quote << a->date_from << " BETWEEN date_from AND date_to) " << assoc_on << " AND stp_indicator = " << mysqlpp::quote <<  a->stp_indicator;
 		}
 	}
 			
 	if(mysqlpp::StoreQueryResult res = query.store()) {		
-		if(res.num_rows() > 0) {
+		if(res.num_rows() > 1 && exact) {
+			return -atoi(res[0]["id"].c_str());
+		}
+		else if(res.num_rows() > 0) {
 			return atoi(res[0]["id"].c_str());
 		}
 		
-		if(!noDateTo)
-			return NRCIF::findIDForAssociation(conn, a, exact, removeDoesntRunOn, true);
-		else if(noDateTo && !removeDoesntRunOn) 
-			return NRCIF::findIDForAssociation(conn, a, exact, true, true);
+		if(!noDateTo && !exact)
+			return NRCIF::findIDForAssociation(conn, a, h, exact, removeDoesntRunOn, true);
+		else if(noDateTo && !removeDoesntRunOn && !exact) 
+			return NRCIF::findIDForAssociation(conn, a, h, exact, true, true);
 		else {
 			// uncomment this if you want some verbose output on errors
 			//cout << endl << "Error query: " << queryString << endl;
