@@ -28,8 +28,13 @@ using namespace boost;
 
 string CIFRecord::convertYYMMDDtoSQL(string date) {
 	string output = "";
-	 
+	
 	trim(date);
+	
+	if(date == "999999") {
+		return "9999-12-31";
+	}
+	
 	if(date == "") {
 		return output;
 	}
@@ -53,9 +58,14 @@ string CIFRecord::convertYYMMDDtoSQL(string date) {
 }
 
 string CIFRecord::convertDDMMYYtoSQL(string date) {
-	 string output = "";
+	string output = "";
 	 
 	trim(date);
+	
+	if(date == "999999") {
+		return "9999-12-31";
+	}
+	
 	if(date == "") {
 		return output;
 	}
@@ -78,20 +88,24 @@ string CIFRecord::convertDDMMYYtoSQL(string date) {
 }
 
 string CIFRecord::convertYYYYMMDDtoSQL(string date) {
-	 string output = "";
+	string output = "";
 	 
-	 trim(date);
+	trim(date);
+	if(date == "99999999") {
+		return "9999-12-31";
+	}
+	
 	if(date == "") {
 		return output;
 	}
 	 	 
-	 output  = date.substr(0, 4); // year
-	 output += "-";
-	 output += date.substr(4, 2); // month
-	 output += "-";
-	 output += date.substr(6, 2); // date
+	output  = date.substr(0, 4); // year
+	output += "-";
+	output += date.substr(4, 2); // month
+	output += "-";
+	output += date.substr(6, 2); // date
 	 
-	 return output;
+	return output;
 }
 
 string CIFRecord::stringToLocationTitleCase(string loc) {

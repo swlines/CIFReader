@@ -192,7 +192,7 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 							id = NRCIF::findIDForAssociation(conn, associationDetail, header, true, true, false);
 						}
 						catch(int e){
-							cerr << endl << "ERROR: Unable to locate association to delete/amend. Exiting." << endl;
+							cerr << endl << "ERROR: Unable to locate association to delete/amend (main UID " << associationDetail->main_train_uid << ", assoc UID " << associationDetail->assoc_train_uid << "). Exiting." << endl;
 							delete record;
 							conn.disconnect();
 							return false;
@@ -568,9 +568,10 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 		NR_CIF::runSchedules(conn, locationInsert, locationsChangeInsert, scheduleDelete);
 		NRCIF::runSchedulesStpCancel(conn, header, scheduleSTPCancelDelete, scheduleSTPCancelInsert);
 		
+		cout << endl << "INFO: File complete..." << endl;
 		query.insert(updaterow);
 		query.execute();
-		cout << endl << "INFO: File complete..." << endl;
+		
 		
 		if(!tiplocComplete) {
 			cout << "INFO: Processing TIPLOCs that weren't completed during run." << endl;
@@ -730,9 +731,10 @@ void NRCIF::runSchedulesStpCancel(mysqlpp::Connection &conn, CIFRecordNRHD *head
 	
 	vector<schedules_stpcancel_t> schedules_stp;
 	vector <CIFRecordNRBS *>::iterator iit;
+		
 	for(iit = scheduleSTPCancelInsert.begin(); iit < scheduleSTPCancelInsert.end(); iit++) {
 		scheduleDetail = *iit;
-		
+				
 		try {
 			// temporarily update service to find the schedule to cancel
 			scheduleDetail->stp_indicator = "P";
@@ -740,7 +742,7 @@ void NRCIF::runSchedulesStpCancel(mysqlpp::Connection &conn, CIFRecordNRHD *head
 			scheduleDetail->stp_indicator = "C";
 		}
 		catch(int e) {
-			cerr << "ERROR: Unable to locate service to STP cancel" << endl;
+			cerr << "ERROR: Unable to locate service to STP cancel (" << scheduleDetail->uid << ")" << endl;
 			delete scheduleDetail;
 			conn.disconnect();
 			return;
@@ -760,7 +762,7 @@ void NRCIF::runSchedulesStpCancel(mysqlpp::Connection &conn, CIFRecordNRHD *head
 		delete scheduleDetail;
 	}
 	scheduleSTPCancelInsert.clear();
-	
+		
 	mysqlpp::Query::SizeThresholdInsertPolicy<> insert_policy(5000);
 	query.insertfrom(schedules_stp.begin(), schedules_stp.end(), insert_policy);
 	schedules_stp.clear();
