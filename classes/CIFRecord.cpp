@@ -18,7 +18,7 @@
     
 **/
 
-#define STRINGTOUPPER " ()&.'"
+#define STRINGTOUPPER " ()&."
 
 #include <string>
 #include "CIFRecord.h"
