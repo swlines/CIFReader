@@ -779,7 +779,6 @@ void NRCIF::runSchedulesStpCancel(mysqlpp::Connection &conn, CIFRecordNRHD *head
 	}
 	scheduleSTPCancelDelete.clear();
 	
-	vector<schedules_stpcancel_core_t> schedules_stp;
 	vector <CIFRecordNRBS *>::iterator iit;
 	int id;
 		
@@ -799,7 +798,7 @@ void NRCIF::runSchedulesStpCancel(mysqlpp::Connection &conn, CIFRecordNRHD *head
 			}catch(int e){}
 		}
 		
-		schedules_stp.push_back(schedules_stpcancel_core_t(scheduleDetail->uid, 
+		schedules_stpcancel_core_t row(scheduleDetail->uid, 
 								mysqlpp::sql_date(scheduleDetail->date_from), 
 								mysqlpp::sql_date(scheduleDetail->date_to),
 								scheduleDetail->runs_mo,
@@ -808,22 +807,14 @@ void NRCIF::runSchedulesStpCancel(mysqlpp::Connection &conn, CIFRecordNRHD *head
 								scheduleDetail->runs_th,
 								scheduleDetail->runs_fr,
 								scheduleDetail->runs_sa,
-								scheduleDetail->runs_su));
+								scheduleDetail->runs_su);
+		query.insert(row);
+		query.execute();
 								
 		delete scheduleDetail;
 	}
 	scheduleSTPCancelInsert.clear();
-	
-	try {
-		mysqlpp::Query::SizeThresholdInsertPolicy<> insert_policy(5000);
-		query.insertfrom(schedules_stp.begin(), schedules_stp.end(), insert_policy);
-	}
-	catch(const mysqlpp::Exception& er) {
-		cerr << endl << "Error: " << er.what() << endl;
-		throw er;
-	}
-	
-	schedules_stp.clear();
+
 }
 
 void NRCIF::runAssociationsStpCancel(mysqlpp::Connection &conn, CIFRecordNRHD *header, vector<CIFRecordNRAA *> &associationSTPCancelDelete, vector<CIFRecordNRAA *> &associationSTPCancelInsert) {
@@ -851,7 +842,6 @@ void NRCIF::runAssociationsStpCancel(mysqlpp::Connection &conn, CIFRecordNRHD *h
 	}
 	associationSTPCancelDelete.clear();
 	
-	vector<associations_stpcancel_core_t> associations_stp;
 	vector <CIFRecordNRAA *>::iterator iit;
 	int id;
 	
@@ -871,7 +861,7 @@ void NRCIF::runAssociationsStpCancel(mysqlpp::Connection &conn, CIFRecordNRHD *h
 			}catch(int e){}
 		}
 										
-		associations_stp.push_back(associations_stpcancel_core_t(associationDetail->main_train_uid, 
+		associations_stpcancel_core_t row(associationDetail->main_train_uid, 
 								   associationDetail->assoc_train_uid, 
 								   associationDetail->location,
 								   associationDetail->base_location_suffix,
@@ -884,22 +874,13 @@ void NRCIF::runAssociationsStpCancel(mysqlpp::Connection &conn, CIFRecordNRHD *h
 								   associationDetail->assoc_th,
 								   associationDetail->assoc_fr,
 								   associationDetail->assoc_sa,
-								   associationDetail->assoc_su));
-								
+								   associationDetail->assoc_su);								
+		query.insert(row);
+		query.execute();
+		
 		delete associationDetail;
 	}
 	associationSTPCancelInsert.clear();
-	
-	try {
-		mysqlpp::Query::SizeThresholdInsertPolicy<> insert_policy(5000);
-		query.insertfrom(associations_stp.begin(), associations_stp.end(), insert_policy);
-	}
-	catch(const mysqlpp::Exception& er) {
-		cerr << endl << "Error: " << er.what() << endl;
-		throw er;
-	}
-	
-	associations_stp.clear();
 }
 
 int NRCIF::findIDForService(mysqlpp::Connection &conn, CIFRecordNRBS *s, CIFRecordNRHD *h, bool exact, bool removeDoesntRunOn, bool noDateTo) {
