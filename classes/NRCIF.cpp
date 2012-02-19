@@ -294,19 +294,6 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 						// load this record up into the vector
 						associationSTPCancelInsert.push_back(associationDetail);
 						
-						// fix for variances in new/revise changes...
-						if(header->update_type == "U" && associationDetail->transaction_type == "N") {
-							try {
-								id = NRCIF::findIDForAssociationStpCancel(conn, associationDetail);
-								while(id < 0) {
-									NRCIF::deleteSTPAssociationCancellation(conn, associationDetail);
-									id = NRCIF::findIDForAssociationStpCancel(conn, associationDetail);
-								}
-								
-								NRCIF::deleteSTPAssociationCancellation(conn, associationDetail);
-							}catch(int e){}
-						}
-						
 						continue; // to stop record deletion
 					}
 				}
@@ -616,19 +603,6 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 						// load this record up into the vector
 						scheduleSTPCancelInsert.push_back(scheduleDetail);
 						
-						// fix for variances in new/revise changes...
-						if(header->update_type == "U" && scheduleDetail->transaction_type == "N") {
-							try {
-								id = NRCIF::findIDForServiceStpCancel(conn, scheduleDetail);
-								while(id < 0) {
-									NRCIF::deleteSTPServiceCancellation(conn, scheduleDetail);
-									id = NRCIF::findIDForServiceStpCancel(conn, scheduleDetail);
-								}
-								
-								NRCIF::deleteSTPServiceCancellation(conn, scheduleDetail);
-							}catch(int e){}
-						}
-						
 						continue; // to stop record deletion
 					} 
 				}
@@ -807,9 +781,23 @@ void NRCIF::runSchedulesStpCancel(mysqlpp::Connection &conn, CIFRecordNRHD *head
 	
 	vector<schedules_stpcancel_core_t> schedules_stp;
 	vector <CIFRecordNRBS *>::iterator iit;
+	int id;
 		
 	for(iit = scheduleSTPCancelInsert.begin(); iit < scheduleSTPCancelInsert.end(); iit++) {
 		scheduleDetail = *iit;
+		
+		// fix for variances in new/revise changes...
+		if(header->update_type == "U" && scheduleDetail->transaction_type == "N") {
+			try {
+				id = NRCIF::findIDForServiceStpCancel(conn, scheduleDetail);
+				while(id < 0) {
+					NRCIF::deleteSTPServiceCancellation(conn, scheduleDetail);
+					id = NRCIF::findIDForServiceStpCancel(conn, scheduleDetail);
+				}
+				
+				NRCIF::deleteSTPServiceCancellation(conn, scheduleDetail);
+			}catch(int e){}
+		}
 		
 		schedules_stp.push_back(schedules_stpcancel_core_t(scheduleDetail->uid, 
 								mysqlpp::sql_date(scheduleDetail->date_from), 
@@ -865,8 +853,23 @@ void NRCIF::runAssociationsStpCancel(mysqlpp::Connection &conn, CIFRecordNRHD *h
 	
 	vector<associations_stpcancel_core_t> associations_stp;
 	vector <CIFRecordNRAA *>::iterator iit;
+	int id;
+	
 	for(iit = associationSTPCancelInsert.begin(); iit < associationSTPCancelInsert.end(); iit++) {
 		associationDetail = *iit;
+		
+		// fix for variances in new/revise changes...
+		if(header->update_type == "U" && associationDetail->transaction_type == "N") {
+			try {
+				id = NRCIF::findIDForAssociationStpCancel(conn, associationDetail);
+				while(id < 0) {
+					NRCIF::deleteSTPAssociationCancellation(conn, associationDetail);
+					id = NRCIF::findIDForAssociationStpCancel(conn, associationDetail);
+				}
+				
+				NRCIF::deleteSTPAssociationCancellation(conn, associationDetail);
+			}catch(int e){}
+		}
 										
 		associations_stp.push_back(associations_stpcancel_core_t(associationDetail->main_train_uid, 
 								   associationDetail->assoc_train_uid, 
