@@ -7,7 +7,7 @@ CIF Reader is a C++ parser that allows you to parse CIF files issued by Network 
 
 CIF Parser requires:
   - Boost, at least version 1.44 (for filesystem v3)
-  - mysqlpp (custom compile - need to run ./configure with --with-field-limit=40)
+  - mysqlpp (custom compile - need to run ./configure with --with-field-limit=55 - needed to ensure schedules and locations can fit in the database)
 
 To use it, you will need to create a SQL database, and run the SQL queries that are included in timetables.sql. You will need to create a file called databaseConfig.h in the root directory (where main.cpp is). Fill this in with the details shown below, in between the quotes, obviously...
 

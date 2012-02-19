@@ -35,5 +35,8 @@ class CIFRecordNRLOLILT : public CIFRecord {
 		CIFRecordNRLOLILT(string rec);
 		~CIFRecordNRLOLILT();
 		string record_type, tiploc, tiploc_instance, arrival, public_arrival, pass, departure, public_departure, platform, line, path, engineering_allowance, pathing_allowance, performance_allowance, activity, order_time;
+		
 		bool public_call, actual_call;
+		
+		bool act_a, act_ae, act_bl, act_c, act_d, act_minusd, act_e, act_g, act_h, act_hh, act_k, act_kc, act_ke, act_kf, act_ks, act_l, act_n, act_op, act_or, act_pr, act_r, act_rm, act_rr, act_s, act_t, act_minust, act_tb, act_tf, act_ts, act_tw, act_u, act_minusu, act_w, act_x;
 };

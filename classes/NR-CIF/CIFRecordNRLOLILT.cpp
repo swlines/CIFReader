@@ -79,7 +79,6 @@ CIFRecordNRLOLILT::CIFRecordNRLOLILT(string rec) {
 	trim(platform);
 	trim(line);
 	trim(path);
-	trim(activity);
 	trim(engineering_allowance);
 	trim(pathing_allowance);
 	trim(performance_allowance);
@@ -106,6 +105,85 @@ CIFRecordNRLOLILT::CIFRecordNRLOLILT(string rec) {
 	else { // arrival time...
 		order_time = arrival;
 	}
+	
+	// set up activities as 0
+	act_a = 0;
+	act_ae = 0;
+	act_bl = 0;
+	act_c = 0;
+	act_d = 0;
+	act_minusd = 0;
+	act_e = 0;
+	act_g = 0;
+	act_h = 0;
+	act_hh = 0;
+	act_k = 0;
+	act_kc = 0;
+	act_ke = 0;
+	act_kf = 0;
+	act_ks = 0;
+	act_l = 0;
+	act_n = 0;
+	act_op = 0;
+	act_or = 0;
+	act_pr = 0;
+	act_r = 0;
+	act_rm = 0;
+	act_rr = 0;
+	act_s = 0;
+	act_t = 0;
+	act_minust = 0;
+	act_tb = 0;
+	act_tf = 0;
+	act_ts = 0;
+	act_tw = 0;
+	act_u = 0;
+	act_minusu = 0;
+	act_w = 0;
+	act_x = 0;
+	string act;
+	
+	// process activity
+	for(int i = 0; i < 12; i=i+2) {
+		act = activity.substr(i, 2);
+		
+		if(act == "A ") { act_a = 1; }
+		else if(act == "AE") { act_ae = 1; }
+		else if(act == "BL") { act_bl = 1; }
+		else if(act == "C ") { act_c = 1; }
+		else if(act == "D ") { act_d = 1; }
+		else if(act == "-D") { act_minusd = 1; }
+		else if(act == "E ") { act_e = 1; }
+		else if(act == "G ") { act_g = 1; }
+		else if(act == "H ") { act_h = 1; }
+		else if(act == "HH") { act_hh = 1; }
+		else if(act == "K ") { act_k = 1; }
+		else if(act == "KC") { act_kc = 1; }
+		else if(act == "KE") { act_ke = 1; }
+		else if(act == "KF") { act_kf = 1; }
+		else if(act == "KS") { act_ks = 1; }
+		else if(act == "L ") { act_l = 1; }
+		else if(act == "N ") { act_n = 1; }
+		else if(act == "OP") { act_op = 1; }
+		else if(act == "OR") { act_or = 1; }
+		else if(act == "PR") { act_pr = 1; }
+		else if(act == "R ") { act_r = 1; }
+		else if(act == "RM") { act_rm = 1; }
+		else if(act == "RR") { act_rr = 1; }
+		else if(act == "S ") { act_s = 1; }
+		else if(act == "T ") { act_t = 1; }
+		else if(act == "-T") { act_minust = 1; }
+		else if(act == "TB") { act_tb = 1; }
+		else if(act == "TF") { act_tf = 1; }
+		else if(act == "TS") { act_ts = 1; }
+		else if(act == "TW") { act_tw = 1; }
+		else if(act == "U ") { act_u = 1; }
+		else if(act == "-U") { act_minusu = 1; }
+		else if(act == "W ") { act_w = 1; }
+		else if(act == "X ") { act_x = 1; }	
+	}
+	
+	trim(activity);	
 }
 
 CIFRecordNRLOLILT::~CIFRecordNRLOLILT() {
