@@ -293,6 +293,20 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 						
 						// load this record up into the vector
 						associationSTPCancelInsert.push_back(associationDetail);
+						
+						// fix for variances in new/revise changes...
+						if(header->update_type == "U" && associationDetail->transaction_type == "N") {
+							try {
+								id = NRCIF::findIDForAssociationStpCancel(conn, associationDetail);
+								while(id < 0) {
+									NRCIF::deleteSTPAssociationCancellation(conn, associationDetail);
+									id = NRCIF::findIDForAssociationStpCancel(conn, associationDetail);
+								}
+								
+								NRCIF::deleteSTPAssociationCancellation(conn, associationDetail);
+							}catch(int e){}
+						}
+						
 						continue; // to stop record deletion
 					}
 				}
@@ -601,7 +615,20 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 						
 						// load this record up into the vector
 						scheduleSTPCancelInsert.push_back(scheduleDetail);
-						scheduleInsNo++;
+						
+						// fix for variances in new/revise changes...
+						if(header->update_type == "U" && scheduleDetail->transaction_type == "N") {
+							try {
+								id = NRCIF::findIDForServiceStpCancel(conn, scheduleDetail);
+								while(id < 0) {
+									NRCIF::deleteSTPServiceCancellation(conn, scheduleDetail);
+									id = NRCIF::findIDForServiceStpCancel(conn, scheduleDetail);
+								}
+								
+								NRCIF::deleteSTPServiceCancellation(conn, scheduleDetail);
+							}catch(int e){}
+						}
+						
 						continue; // to stop record deletion
 					} 
 				}
@@ -798,9 +825,16 @@ void NRCIF::runSchedulesStpCancel(mysqlpp::Connection &conn, CIFRecordNRHD *head
 		delete scheduleDetail;
 	}
 	scheduleSTPCancelInsert.clear();
-		
-	mysqlpp::Query::SizeThresholdInsertPolicy<> insert_policy(5000);
-	query.insertfrom(schedules_stp.begin(), schedules_stp.end(), insert_policy);
+	
+	try {
+		mysqlpp::Query::SizeThresholdInsertPolicy<> insert_policy(5000);
+		query.insertfrom(schedules_stp.begin(), schedules_stp.end(), insert_policy);
+	}
+	catch(const mysqlpp::Exception& er) {
+		cerr << endl << "Error: " << er.what() << endl;
+		throw er;
+	}
+	
 	schedules_stp.clear();
 }
 
@@ -853,8 +887,15 @@ void NRCIF::runAssociationsStpCancel(mysqlpp::Connection &conn, CIFRecordNRHD *h
 	}
 	associationSTPCancelInsert.clear();
 	
-	mysqlpp::Query::SizeThresholdInsertPolicy<> insert_policy(5000);
-	query.insertfrom(associations_stp.begin(), associations_stp.end(), insert_policy);
+	try {
+		mysqlpp::Query::SizeThresholdInsertPolicy<> insert_policy(5000);
+		query.insertfrom(associations_stp.begin(), associations_stp.end(), insert_policy);
+	}
+	catch(const mysqlpp::Exception& er) {
+		cerr << endl << "Error: " << er.what() << endl;
+		throw er;
+	}
+	
 	associations_stp.clear();
 }
 
@@ -921,6 +962,30 @@ int NRCIF::findIDForService(mysqlpp::Connection &conn, CIFRecordNRBS *s, CIFReco
 	throw 2;
 }
 
+int NRCIF::findIDForServiceStpCancel(mysqlpp::Connection &conn, CIFRecordNRBS *s) {
+	mysqlpp::Query query = conn.query();
+		
+	// find this service
+	query << "SELECT train_uid FROM schedules_stpcancel_core_t WHERE train_uid = " << mysqlpp::quote << s->uid << " AND cancel_from = " << mysqlpp::quote << s->date_from;
+	
+	string queryString = query.str();
+		
+	if(mysqlpp::StoreQueryResult res = query.store()) {
+		if(res.num_rows() > 1) {
+			return -1;
+		}
+		else if(res.num_rows() > 0) {
+			return 1;
+		}
+		
+		// uncomment this if you want some verbose output on errors
+		//cout << endl << "Error query: " << queryString << endl;
+		throw 1;
+	}
+	
+	throw 2;
+}
+
 
 
 void NRCIF::deleteService(mysqlpp::Connection &conn, int id) {
@@ -934,9 +999,6 @@ void NRCIF::deleteService(mysqlpp::Connection &conn, int id) {
 	
 	query << "DELETE FROM schedules_t WHERE id = " << id;
 	query.execute();
-	
-	//query << "DELETE FROM schedules_stpcancel_t WHERE id = " << id;
-	//query.execute();
 }
 
 void NRCIF::deleteSTPServiceCancellation(mysqlpp::Connection &conn, CIFRecordNRBS *s) {
@@ -1000,6 +1062,30 @@ int NRCIF::findIDForAssociation(mysqlpp::Connection &conn, CIFRecordNRAA *a, CIF
 			//cout << endl << "Error query: " << queryString << endl;
 			throw 1;
 		}
+	}
+	
+	throw 2;
+}
+
+int NRCIF::findIDForAssociationStpCancel(mysqlpp::Connection &conn, CIFRecordNRAA *a) {
+	mysqlpp::Query query = conn.query();
+		
+	// find this service
+	query << "SELECT main_train_uid FROM associations_stpcancel_core_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND cancel_from = " << mysqlpp::quote << a->date_from;
+	
+	string queryString = query.str();
+		
+	if(mysqlpp::StoreQueryResult res = query.store()) {
+		if(res.num_rows() > 1) {
+			return -1;
+		}
+		else if(res.num_rows() > 0) {
+			return 1;
+		}
+		
+		// uncomment this if you want some verbose output on errors
+		//cout << endl << "Error query: " << queryString << endl;
+		throw 1;
 	}
 	
 	throw 2;

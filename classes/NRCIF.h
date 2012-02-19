@@ -53,8 +53,10 @@ class NRCIF {
 		static void runAssociationsStpCancel(mysqlpp::Connection &conn, CIFRecordNRHD *header, vector<CIFRecordNRAA *> &associationSTPCancelDelete, vector<CIFRecordNRAA *> &associationSTPCancelInsert);
 		
 		static int findIDForService(mysqlpp::Connection &conn, CIFRecordNRBS *s, CIFRecordNRHD *h, bool exact, bool removeDoesntRunOn, bool noDateTo);
+		static int findIDForServiceStpCancel(mysqlpp::Connection &conn, CIFRecordNRBS *s);
 		static void deleteSTPServiceCancellation(mysqlpp::Connection &conn, CIFRecordNRBS *s);
 		
 		static int findIDForAssociation(mysqlpp::Connection &conn, CIFRecordNRAA *a, CIFRecordNRHD *h, bool exact, bool removeDoesntRunOn, bool noDateTo);
+		static int findIDForAssociationStpCancel(mysqlpp::Connection &conn, CIFRecordNRAA *a);
 		static void deleteSTPAssociationCancellation(mysqlpp::Connection &conn, CIFRecordNRAA *a);
 };
