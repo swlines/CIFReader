@@ -6,3 +6,7 @@ The database schema has significantly changed in this version. uuids are no long
 * It is now possible to detect, without any legwork, if a schedule is a bus, ship or passenger service using the new flags in the schedules column.
 * ATOC CIF is now supported, please note that once the progress bar has reached 100% it now means it has finished reading the file. All STP cancellations are performed at the end now due to the idiocy of trying to cancel schedules before they exist.
 * The PHP code included no longer works with the schema (as it was intended for the previous one) but should be workable if anyone wishes to fork it and modify suitably. There are a few minor column changes and these should fairly be noticable by the error messages that will probably come up.
+
+19/02/2012:
+* Added 2 new tables which do not impede on the functionality of any script that runs against the system, it is simply a table that the parser uses to calculate STP cancels correctly.
+* Updated some SQL queries to be more efficient.

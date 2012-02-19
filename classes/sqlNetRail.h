@@ -64,8 +64,8 @@
 		mysqlpp::sql_int, passenger,
 		mysqlpp::Null<mysqlpp::sql_int>, id)
 		
-	sql_create_10(schedules_stpcancel_t, 1, 10,
-		mysqlpp::sql_int, id,
+	sql_create_10(schedules_stpcancel_core_t, 1, 10,
+		mysqlpp::sql_varchar, train_uid,
 		mysqlpp::sql_date, cancel_from,
 		mysqlpp::sql_date, cancel_to,
 		mysqlpp::sql_char, cancel_mo,
@@ -148,8 +148,12 @@
 		mysqlpp::sql_varchar, stp_indicator,
 		mysqlpp::Null<mysqlpp::sql_int>, id)
 	
-	sql_create_10(associations_stpcancel_t, 1, 10,
-		mysqlpp::sql_int, id,
+	sql_create_14(associations_stpcancel_core_t, 1, 14,
+		mysqlpp::sql_varchar, main_train_uid,
+		mysqlpp::sql_varchar, assoc_train_uid,
+		mysqlpp::sql_varchar, location,
+		mysqlpp::sql_varchar, base_location_suffix,
+		mysqlpp::sql_varchar, assoc_location_suffix,
 		mysqlpp::sql_date, cancel_from,
 		mysqlpp::sql_date, cancel_to,
 		mysqlpp::sql_char, cancel_mo,
