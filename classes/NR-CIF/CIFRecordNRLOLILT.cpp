@@ -91,21 +91,6 @@ CIFRecordNRLOLILT::CIFRecordNRLOLILT(string rec) {
 		public_departure = "";
 	}
 	
-	// set up public call
-	public_call = (public_arrival != "" || public_departure != "");
-	actual_call = (arrival != "" || departure != "");
-	
-	//now create the ordertime field...
-	if(pass != "") {
-		order_time = pass;
-	}
-	else if(departure != "") { // departure time...
-		order_time = departure;
-	}
-	else { // arrival time...
-		order_time = arrival;
-	}
-	
 	// set up activities as 0
 	act_a = 0;
 	act_ae = 0;
@@ -181,6 +166,21 @@ CIFRecordNRLOLILT::CIFRecordNRLOLILT(string rec) {
 		else if(act == "-U") { act_minusu = 1; }
 		else if(act == "W ") { act_w = 1; }
 		else if(act == "X ") { act_x = 1; }	
+	}
+	
+	// set up public call
+	public_call = ((public_arrival != "" || public_departure != "") && act_n = 0);
+	actual_call = (arrival != "" || departure != "");
+	
+	//now create the ordertime field...
+	if(pass != "") {
+		order_time = pass;
+	}
+	else if(departure != "") { // departure time...
+		order_time = departure;
+	}
+	else { // arrival time...
+		order_time = arrival;
 	}
 	
 	trim(activity);	
