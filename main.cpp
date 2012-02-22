@@ -236,7 +236,7 @@ int main(int argc, char *argv[]) {
 			for(boost::filesystem::directory_iterator itr(*dit); itr != end_itr; ++itr) {
 				if(boost::filesystem::is_directory(*itr)) continue;
 				else if(boost::filesystem::exists(*itr)) {
-					filePaths.insert(filePath + itr->path().filename().c_str());
+					filePaths.insert(itr->path().string());
 				}
 			}
 			
