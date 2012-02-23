@@ -169,7 +169,7 @@ CIFRecordNRLOLILT::CIFRecordNRLOLILT(string rec) {
 	}
 	
 	// set up public call
-	public_call = (act_n = 0 && (public_arrival != "" || public_departure != ""));
+	public_call = (act_n == 0 && (public_arrival != "" || public_departure != ""));
 	actual_call = (arrival != "" || departure != "");
 	
 	//now create the ordertime field...
