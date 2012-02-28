@@ -129,7 +129,7 @@ CIFRecordNRLOLILT::CIFRecordNRLOLILT(string rec) {
 	string act;
 	
 	// process activity
-	for(int i = 0; i < 12; i=i+2) {
+	for(int i = 0; i < activity.length(); i=i+2) {
 		act = activity.substr(i, 2);
 		
 		if(act == "A ") { act_a = 1; }

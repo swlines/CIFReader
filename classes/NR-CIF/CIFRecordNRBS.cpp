@@ -84,7 +84,6 @@ CIFRecordNRBS::CIFRecordNRBS(string rec) {
 	trim(category);
 	trim(headcode);
 	trim(portion_id);
-	trim(operating_characteristics);
 	trim(sleepers);
 	trim(reservations);
 	trim(catering_code);
@@ -115,6 +114,39 @@ CIFRecordNRBS::CIFRecordNRBS(string rec) {
 	if(bus == 1 || ship == 1 || category == "OL" || category == "OO" || category == "XC" || category == "XX" || category == "XZ") {
 		passenger = 1;
 	}
+	
+	oc_b = 0;
+	oc_c = 0;
+	oc_d = 0;
+	oc_e = 0;
+	oc_g = 0;
+	oc_m = 0;
+	oc_p = 0;
+	oc_q = 0;
+	oc_r = 0;
+	oc_s = 0;
+	oc_y = 0;
+	oc_z = 0;
+	string oc;
+	
+	for(int i = 0; i < operating_characteristics.length(); i++) {
+		oc = operating_characteristics.substr(i, 1);
+		
+		if(oc == "B") { oc_b = 1; }
+		else if(oc == "C") { oc_c = 1; }
+		else if(oc == "D") { oc_d = 1; }
+		else if(oc == "E") { oc_e = 1; }
+		else if(oc == "G") { oc_g = 1; }
+		else if(oc == "M") { oc_m = 1; }
+		else if(oc == "P") { oc_p = 1; }
+		else if(oc == "Q") { oc_q = 1; }
+		else if(oc == "R") { oc_r = 1; }
+		else if(oc == "S") { oc_s = 1; }
+		else if(oc == "Y") { oc_y = 1; }
+		else if(oc == "Z") { oc_z = 1; }
+	}
+	
+	trim(operating_characteristics);
 }
 
 void CIFRecordNRBS::mergeWithBX(string rec) {

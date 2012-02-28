@@ -437,6 +437,18 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 											  scheduleDetail->train,
 											  scheduleDetail->ship,
 											  scheduleDetail->passenger,
+											  scheduleDetail->oc_b,
+											  scheduleDetail->oc_c,
+											  scheduleDetail->oc_d,
+											  scheduleDetail->oc_e,
+											  scheduleDetail->oc_g,
+											  scheduleDetail->oc_m,
+											  scheduleDetail->oc_p,
+											  scheduleDetail->oc_q,
+											  scheduleDetail->oc_r,
+											  scheduleDetail->oc_s,
+											  scheduleDetail->oc_y,
+											  scheduleDetail->oc_z,
 											  id);
 											  
 								query.insert(row);
@@ -479,6 +491,18 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 											  scheduleDetail->train,
 											  scheduleDetail->ship,
 											  scheduleDetail->passenger,
+											  scheduleDetail->oc_b,
+											  scheduleDetail->oc_c,
+											  scheduleDetail->oc_d,
+											  scheduleDetail->oc_e,
+											  scheduleDetail->oc_g,
+											  scheduleDetail->oc_m,
+											  scheduleDetail->oc_p,
+											  scheduleDetail->oc_q,
+											  scheduleDetail->oc_r,
+											  scheduleDetail->oc_s,
+											  scheduleDetail->oc_y,
+											  scheduleDetail->oc_z,
 											  mysqlpp::null);
 											  
 								query.insert(row);
@@ -1018,14 +1042,29 @@ int NRCIF::findIDForAssociation(mysqlpp::Connection &conn, CIFRecordNRAA *a, CIF
 	
 	// find this association
 	if(exact) {		
-		query << "SELECT id FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND date_from = " << mysqlpp::quote << a->date_from << " AND stp_indicator = " << mysqlpp::quote <<  a->stp_indicator;
-	}
-	else{
-		if(a->date_to != "" && !noDateTo) {
-			query << "SELECT id FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND (" << mysqlpp::quote << a->date_from << " BETWEEN date_from AND date_to) AND (" << mysqlpp::quote << a->date_to << " BETWEEN date_from AND date_to) " << assoc_on << " AND stp_indicator = " << mysqlpp::quote <<  a->stp_indicator; 
+		if(a->transaction_type != "D") {
+			query << "SELECT id FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND date_from = " << mysqlpp::quote << a->date_from << " AND base_location_suffix = " << mysqlpp::quote << a->base_location_suffix << " AND assoc_location_suffix = " << mysqlpp::quote << a->assoc_location_suffix << " AND stp_indicator = " << mysqlpp::quote <<  a->stp_indicator;
 		}
 		else {
-			query << "SELECT id FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND (" << mysqlpp::quote << a->date_from << " BETWEEN date_from AND date_to) " << assoc_on << " AND stp_indicator = " << mysqlpp::quote <<  a->stp_indicator;
+			query << "SELECT id FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND date_from = " << mysqlpp::quote << a->date_from << " AND stp_indicator = " << mysqlpp::quote <<  a->stp_indicator;
+		}
+	}
+	else{
+		if(a->transaction_type != "D") {
+			if(a->date_to != "" && !noDateTo) {
+				query << "SELECT id FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND (" << mysqlpp::quote << a->date_from << " BETWEEN date_from AND date_to) AND (" << mysqlpp::quote << a->date_to << " BETWEEN date_from AND date_to) AND base_location_suffix = " << mysqlpp::quote << a->base_location_suffix << " AND assoc_location_suffix = " << mysqlpp::quote << a->assoc_location_suffix << " " << assoc_on << " AND stp_indicator = " << mysqlpp::quote <<  a->stp_indicator; 
+			}
+			else {
+				query << "SELECT id FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND (" << mysqlpp::quote << a->date_from << " BETWEEN date_from AND date_to) AND base_location_suffix = " << mysqlpp::quote << a->base_location_suffix << " AND assoc_location_suffix = " << mysqlpp::quote << a->assoc_location_suffix << "  " << assoc_on << " AND stp_indicator = " << mysqlpp::quote <<  a->stp_indicator;
+			}
+		}
+		else {
+			if(a->date_to != "" && !noDateTo) {
+				query << "SELECT id FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND (" << mysqlpp::quote << a->date_from << " BETWEEN date_from AND date_to) AND (" << mysqlpp::quote << a->date_to << " BETWEEN date_from AND date_to) " << assoc_on << " AND stp_indicator = " << mysqlpp::quote <<  a->stp_indicator; 
+			}
+			else {
+				query << "SELECT id FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND (" << mysqlpp::quote << a->date_from << " BETWEEN date_from AND date_to) " << assoc_on << " AND stp_indicator = " << mysqlpp::quote <<  a->stp_indicator;
+			}
 		}
 	}
 			

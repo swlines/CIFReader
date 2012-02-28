@@ -24,7 +24,7 @@
 #ifndef _SQLCREATED_
 	#define _SQLCREATED_
 	
-	sql_create_38(schedules_t, 1, 38,
+	sql_create_50(schedules_t, 1, 50,
 		mysqlpp::sql_varchar, train_uid, 
 		mysqlpp::sql_varchar, unique_id,
 		mysqlpp::sql_date, date_from,
@@ -62,6 +62,18 @@
 		mysqlpp::sql_int, train,
 		mysqlpp::sql_int, ship,
 		mysqlpp::sql_int, passenger,
+		mysqlpp::sql_int, oc_b,
+		mysqlpp::sql_int, oc_c,
+		mysqlpp::sql_int, oc_d,
+		mysqlpp::sql_int, oc_e,
+		mysqlpp::sql_int, oc_g,
+		mysqlpp::sql_int, oc_m,
+		mysqlpp::sql_int, oc_p,
+		mysqlpp::sql_int, oc_q,
+		mysqlpp::sql_int, oc_r,
+		mysqlpp::sql_int, oc_s,
+		mysqlpp::sql_int, oc_y,
+		mysqlpp::sql_int, oc_z,
 		mysqlpp::Null<mysqlpp::sql_int>, id)
 		
 	sql_create_10(schedules_stpcancel_core_t, 1, 10,
