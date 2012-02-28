@@ -129,7 +129,7 @@ CIFRecordNRBS::CIFRecordNRBS(string rec) {
 	oc_z = 0;
 	string oc;
 	
-	for(int i = 0; i < operating_characteristics.length(); i++) {
+	for(unsigned i = 0; i < operating_characteristics.length(); i++) {
 		oc = operating_characteristics.substr(i, 1);
 		
 		if(oc == "B") { oc_b = 1; }
