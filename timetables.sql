@@ -309,7 +309,7 @@ CREATE TABLE `tiplocs` (
 CREATE TABLE `tiplocs_cache` (
   `tiploc` char(7) NOT NULL,
   `nalco` char(6) NOT NULL,
-  `tps_description` char(26) NOT NULL,
+  `tps_description` char(50) NOT NULL,
   `stanox` char(5) NOT NULL,
   `crs` char(3) NOT NULL,
   `description` char(16) NOT NULL,
@@ -328,4 +328,12 @@ CREATE TABLE `updates` (
   `update_type` enum('F','U') NOT NULL,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+CREATE TABLE `stations` (
+  `tiploc` char(7) NOT NULL DEFAULT '',
+  `crs` char(3) NOT NULL DEFAULT '',
+  `description` varchar(50) NOT NULL,
+  PRIMARY KEY (`tiploc`),
+  UNIQUE KEY `crs` (`crs`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;

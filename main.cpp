@@ -322,7 +322,7 @@ int main(int argc, char *argv[]) {
 	cout << "INFO: Building schedule cache..." << endl;
 	query.exec("INSERT INTO schedules_cache_t SELECT l1.id, l1.tiploc_code as origin, l1.departure as departure, l1.public_departure as public_origin, l2.tiploc_code as destination, l2.arrival as destination_time, l2.public_arrival as public_destination FROM locations_t l1 LEFT JOIN locations_t l2 ON l1.id = l2.id AND l2.location_type = 'LT' WHERE l1.location_type = 'LO'");
 	cout << "INFO: Building TIPLOC cache..." << endl;
-	query.exec("INSERT INTO tiplocs_cache_t SELECT additional_tiploc tiploc, t.nalco, t.tps_description, t.stanox, t.crs, t.description FROM locations_alternatives la LEFT JOIN tiplocs_t t ON la.tiploc = t.tiploc UNION SELECT t.* FROM tiplocs_t t LEFT JOIN locations_alternatives la ON la.additional_tiploc = t.tiploc WHERE la.tiploc IS NULL ORDER BY tiploc ASC");
+	query.exec("INSERT INTO tiplocs_cache_t SELECT s.tiploc, t.nalco, s.description, t.stanox, s.crs, t.description FROM stations s LEFT JOIN tiplocs t ON s.tiploc = t.tiploc UNION SELECT la.additional_tiploc, t.nalco, s.description, t.stanox, s.crs, t.description FROM stations s INNER JOIN locations_alternatives la ON s.tiploc = la.tiploc LEFT JOIN tiplocs t ON s.tiploc = t.tiploc UNION SELECT t.* FROM tiplocs t LEFT JOIN stations s ON t.tiploc = s.tiploc LEFT JOIN locations_alternatives la ON t.tiploc = la.additional_tiploc WHERE la.tiploc IS NULL AND s.tiploc IS NULL ORDER BY tiploc ASC");
 	cout << "INFO: Cache building completed..." << endl;
 	
 	cout << "INFO: Now moving current tables out of the way..." << endl;

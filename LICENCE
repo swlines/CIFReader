@@ -1,3 +1,10 @@
+All files with exception of those listed below are under GPL v3. Files not
+under GPL v3:
+  * locations/allStations.csv (CC BY-SA 3.0)
+  * locations/associations.csv (CC BY-SA 3.0)
+
+--
+
                     GNU GENERAL PUBLIC LICENSE
                        Version 3, 29 June 2007
 

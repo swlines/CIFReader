@@ -34,6 +34,12 @@ There are arguments to the program, they must be called separately and separated
 		
 So as an example... ./parser -t -k -d TTISF618.MCA
 
+Sidenote:
+
+	The files in the locations directory, allStations.csv and associations.csv, should be loaded into stations and locations_alternatives tables respectively if you want to 'merge' locations a bit more easily. It provides a basis in tiplocs_cache to prevent having to keep looking up, and the queries
+	to use locations_alternatives are fairly trivial when looking up TIPLOCs.
+
+
 Ethos:
 
 	My ethos with providing code is to allow you to build your own system with the tools that I have provided, but not to effectively make clones of something I have done as that's not very novel and rather boring in my opinion. Due to this, I only provide the code to make something *work* - any UI you will need to do yourself. :) I hope you will all appreciate that.
