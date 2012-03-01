@@ -178,7 +178,6 @@ CREATE TABLE `locations_change` (
   KEY `tiploc` (`tiploc`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
-
 CREATE TABLE `schedules` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `unique_id` char(15) NOT NULL,
@@ -218,6 +217,18 @@ CREATE TABLE `schedules` (
   `train` tinyint(1) NOT NULL DEFAULT '0',
   `ship` tinyint(1) NOT NULL DEFAULT '0',
   `passenger` tinyint(1) NOT NULL DEFAULT '0',
+  `oc_b` tinyint(1) NOT NULL,
+  `oc_c` tinyint(1) NOT NULL,
+  `oc_d` tinyint(1) NOT NULL,
+  `oc_e` tinyint(1) NOT NULL,
+  `oc_g` tinyint(1) NOT NULL,
+  `oc_m` tinyint(1) NOT NULL,
+  `oc_p` tinyint(1) NOT NULL,
+  `oc_q` tinyint(1) NOT NULL,
+  `oc_r` tinyint(1) NOT NULL,
+  `oc_s` tinyint(1) NOT NULL,
+  `oc_y` tinyint(1) NOT NULL,
+  `oc_z` tinyint(1) NOT NULL,
   PRIMARY KEY (`id`),
   KEY `train_uid` (`train_uid`),
   KEY `date_from` (`date_from`),
@@ -230,6 +241,7 @@ CREATE TABLE `schedules` (
   KEY `runs_sa` (`runs_sa`),
   KEY `runs_su` (`runs_su`),
   KEY `stp_indicator` (`stp_indicator`),
+  KEY `grouping` (`atoc_code`,`stp_indicator`,`passenger`,`train`,`bus`,`ship`),
   KEY `train_identity` (`train_identity`),
   KEY `bank_hol` (`bank_hol`),
   KEY `status` (`status`),
