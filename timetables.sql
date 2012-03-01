@@ -241,7 +241,6 @@ CREATE TABLE `schedules` (
   KEY `runs_sa` (`runs_sa`),
   KEY `runs_su` (`runs_su`),
   KEY `stp_indicator` (`stp_indicator`),
-  KEY `grouping` (`atoc_code`,`stp_indicator`,`passenger`,`train`,`bus`,`ship`),
   KEY `train_identity` (`train_identity`),
   KEY `bank_hol` (`bank_hol`),
   KEY `status` (`status`),
