@@ -192,10 +192,14 @@ bool NRCIF::processFile(mysqlpp::Connection &conn, const char* filePath) {
 							id = NRCIF::findIDForAssociation(conn, associationDetail, header, true, true, false);
 						}
 						catch(int e){
-							cerr << endl << "ERROR: Unable to locate association to delete/amend (main UID " << associationDetail->main_train_uid << ", assoc UID " << associationDetail->assoc_train_uid << "). Exiting." << endl;
+							//cerr << endl << "ERROR: Unable to locate association to delete/amend (main UID " << associationDetail->main_train_uid << ", assoc UID " << associationDetail->assoc_train_uid << "). Exiting." << endl;
+							
+							// other lines are commented out due to problems in CIF, if these are corrected then can be 
+							// uncommented
 							delete record;
-							conn.disconnect();
-							return false;
+							continue;
+							//conn.disconnect();
+							//return false;
 						}
 						
 						while(id < 0) {
@@ -1055,7 +1059,7 @@ int NRCIF::findIDForAssociation(mysqlpp::Connection &conn, CIFRecordNRAA *a, CIF
 				query << "SELECT id FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND (" << mysqlpp::quote << a->date_from << " BETWEEN date_from AND date_to) AND (" << mysqlpp::quote << a->date_to << " BETWEEN date_from AND date_to) AND base_location_suffix = " << mysqlpp::quote << a->base_location_suffix << " AND assoc_location_suffix = " << mysqlpp::quote << a->assoc_location_suffix << " " << assoc_on << " AND stp_indicator = " << mysqlpp::quote <<  a->stp_indicator; 
 			}
 			else {
-				query << "SELECT id FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND (" << mysqlpp::quote << a->date_from << " BETWEEN date_from AND date_to) AND base_location_suffix = " << mysqlpp::quote << a->base_location_suffix << " AND assoc_location_suffix = " << mysqlpp::quote << a->assoc_location_suffix << "  " << assoc_on << " AND stp_indicator = " << mysqlpp::quote <<  a->stp_indicator;
+				query << "SELECT id FROM associations_t WHERE main_train_uid = " << mysqlpp::quote << a->main_train_uid << " AND assoc_train_uid = " << mysqlpp::quote << a->assoc_train_uid << " AND location = " << mysqlpp::quote << a->location << " AND (" << mysqlpp::quote << a->date_from << " BETWEEN date_from AND date_to) AND base_location_suffix = " << mysqlpp::quote << a->base_location_suffix << " AND assoc_location_suffix = " << mysqlpp::quote << a->assoc_location_suffix << " " << assoc_on << " AND stp_indicator = " << mysqlpp::quote <<  a->stp_indicator;
 			}
 		}
 		else {
@@ -1067,6 +1071,8 @@ int NRCIF::findIDForAssociation(mysqlpp::Connection &conn, CIFRecordNRAA *a, CIF
 			}
 		}
 	}
+	
+	string queryString = query.str();
 			
 	if(mysqlpp::StoreQueryResult res = query.store()) {		
 		if(res.num_rows() > 1 && exact) {
@@ -1082,7 +1088,7 @@ int NRCIF::findIDForAssociation(mysqlpp::Connection &conn, CIFRecordNRAA *a, CIF
 			return NRCIF::findIDForAssociation(conn, a, h, exact, true, true);
 		else {
 			// uncomment this if you want some verbose output on errors
-			//cout << endl << "Error query: " << queryString << endl;
+			// cout << endl << "Error query: " << queryString << endl;
 			throw 1;
 		}
 	}
