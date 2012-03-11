@@ -46,6 +46,10 @@ class NRCIF {
 		static void deleteService(mysqlpp::Connection &conn, int id);
 		static void deleteAssociation(mysqlpp::Connection &conn, int id);
 		
+		#ifdef GLA
+			static void calculateGLA(mysqlpp::Connection &conn);
+		#endif
+		
 	private:
 		static CIFRecord* processLine(string record);
 		static void runTiploc(mysqlpp::Connection &conn, vector<CIFRecordNRTITA *> &tiplocInsert, vector<string> &tiplocDelete);
