@@ -141,7 +141,7 @@ int main(int argc, char *argv[]) {
 		query.exec("INSERT INTO associations_stpcancel_core_t SELECT * FROM associations_stpcancel_core");
 		
 		cout << "INFO: Inserting locations into temporary table..." << endl;
-		query.exec("CREATE TABLE locations_t SELECT * FROM locations"); // temp locations
+		query.exec("CREATE TABLE locations_t ENGINE=MyISAM SELECT * FROM locations ENGINE=MyISAM"); // temp locations
 		
 		if(!disableKeys) {
 			cout << "INFO: Generating ID key on locations_t" << endl;
