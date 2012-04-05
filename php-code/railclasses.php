@@ -1,11 +1,9 @@
 <?php
 
 class railServiceSearch {
-
-	/*** PLEASE NOTE THIS CODE DOES NOT WORK WITH THE CURRENT DATABASE SCHEMA ***/
 	
 	// change your settings to what you want them to use
-	const db_database = '';
+	const db_database = 'timetables'; // fixed in sql
 	const db_username = '';
 	const db_password = '';
 	const db_location = '';
@@ -635,15 +633,15 @@ class railServiceSearch {
 			// now find associations
 			$assoc = array();
 			
-			if($a = $this->query('select associations.* from associations where (`main_train_uid` = "'. $schedule->train_uid .'" or `assoc_train_uid` = "'. $schedule->train_uid .'") AND ("'. $dt .'" between date_from and date_to) AND assoc_'. $day .' = 1 AND (stp_indicator = "O" OR stp_indicator = "N") UNION select associations.* from associations left join associations assocoverlay on (assocoverlay.stp_indicator = "O" AND assocoverlay.main_train_uid = associations.main_train_uid AND assocoverlay.assoc_train_uid = associations.assoc_train_uid  AND ("'. $dt .'" between assocoverlay.date_from and assocoverlay.date_to) AND assocoverlay.assoc_'. $day .' = 1) left join associations_stpcancel on associations_stpcancel.id = associations.id and ("'. $dt .'" between cancel_from and cancel_to and cancel_'. $day .' = 1) where (associations.`main_train_uid` = "'. $schedule->train_uid .'" or associations.`assoc_train_uid` = "'. $schedule->train_uid .'") AND ("'. $dt .'" between associations.date_from and associations.date_to) AND associations.assoc_'. $day .' = 1 AND associations.stp_indicator = "P" AND associations_stpcancel.id is null and assocoverlay.main_train_uid is null')) {
+			if($a = $this->query('select associations.* from associations where (`main_train_uid` = "'. $schedule->train_uid .'" or `assoc_train_uid` = "'. $schedule->train_uid .'") AND ("'. $dt .'" between date_from and date_to) AND runs_'. $day .' = 1 AND (stp_indicator = "O" OR stp_indicator = "N") UNION select associations.* from associations left join associations assocoverlay on (assocoverlay.stp_indicator = "O" AND assocoverlay.main_train_uid = associations.main_train_uid AND assocoverlay.assoc_train_uid = associations.assoc_train_uid  AND ("'. $dt .'" between assocoverlay.date_from and assocoverlay.date_to) AND assocoverlay.runs_'. $day .' = 1) left join associations_stpcancel on associations_stpcancel.id = associations.id and ("'. $dt .'" between cancel_from and cancel_to and cancel_'. $day .' = 1) where (associations.`main_train_uid` = "'. $schedule->train_uid .'" or associations.`assoc_train_uid` = "'. $schedule->train_uid .'") AND ("'. $dt .'" between associations.date_from and associations.date_to) AND associations.runs_'. $day .' = 1 AND associations.stp_indicator = "P" AND associations_stpcancel.id is null and assocoverlay.main_train_uid is null')) {
 				while($row = $a->fetch_object()) $assoc[] = $row;
 			}
 			unset($a);
 						
-			// now process…
+			// now processâ€¦
 			$service = new stdClass;
 			$service->id = $schedule->id;
-			$service->uuid = $schedule->uuid;
+			$service->unique_id = $schedule->unique_id;
 			$service->train_uid = $schedule->train_uid;
 			$service->date_from = $schedule->date_from;
 			$service->date_to = $schedule->date_to;
@@ -743,7 +741,7 @@ class railServiceSearch {
 							
 							$a->public = ($association->assoc_type == "P") ? true : false;
 							$associationTrain = ($this->getScheduleDetails($a->associate, $a->date));
-							$a->associateUUID = $associationTrain->uuid;
+							$a->associateUUID = $associationTrain->unique_id;
 							$a->associateTrainUid = $associationTrain->train_uid;
 							$a->associateTrainId = $associationTrain->train_identity;
 							$a->associationOrigin = self::capitalizeWords($associationTrain->originname);
@@ -770,7 +768,7 @@ class railServiceSearch {
 							//print $a->date .' '.$a->associate; 
 							$a->public = ($association->assoc_type == "P") ? true : false;
 							$associationTrain = ($this->getScheduleDetails($a->associate, $a->date));
-							$a->associateUUID = $associationTrain->uuid;
+							$a->associateUUID = $associationTrain->unique_id;
 							$a->associateTrainUid = $associationTrain->train_uid;
 							$a->associateTrainId = $associationTrain->train_identity;
 							$a->associationOrigin = self::capitalizeWords($associationTrain->originname);
@@ -797,7 +795,7 @@ class railServiceSearch {
 	private function buildLocationOriginQuery($origin, $destination, $date, $category = NULL) {
 		list($dt, $day) = $this->getMySQLDate($date);
 		
-		$query = 'select origin.public_departure deptime, origin.platform origin_platform, destination.public_arrival arrtime, destination.platform destination_platform, schedules_cache.origin, serviceorigin.tps_description origin_description, serviceorigin.crs origin_crs, schedules_cache.origin_time, schedules_cache.public_origin,  schedules_cache.destination, servicedestination.tps_description destination_description, servicedestination.crs destination_crs, schedules_cache.destination_time, schedules_cache.public_destination, schedules.uuid, schedules.train_identity, "'. $dt .'" as date, schedules.train_uid, schedules.atoc_code atoc, schedules.sleepers, schedules.catering_code from locations origin join locations destination on (origin.id = destination.id and destination.tiploc_code ';
+		$query = 'select origin.public_departure deptime, origin.platform origin_platform, destination.public_arrival arrtime, destination.platform destination_platform, schedules_cache.origin, serviceorigin.tps_description origin_description, serviceorigin.crs origin_crs, schedules_cache.origin_time, schedules_cache.public_origin,  schedules_cache.destination, servicedestination.tps_description destination_description, servicedestination.crs destination_crs, schedules_cache.destination_time, schedules_cache.public_destination, schedules.unique_id, schedules.train_identity, "'. $dt .'" as date, schedules.train_uid, schedules.atoc_code atoc, schedules.sleepers, schedules.catering_code from locations origin join locations destination on (origin.id = destination.id and destination.tiploc_code ';
 		
 		if(is_array($destination)) {
 			foreach($destination as &$loc) {
@@ -833,7 +831,7 @@ class railServiceSearch {
 	private function buildAssociativeLocationQuery($origin, $destination, $date, $category = NULL) {
 		list($dt, $day) = $this->getMySQLDate($date);
 		
-		$query = 'select origin.public_departure deptime, origin.platform origin_platform, destination.public_arrival arrtime, destination.platform destination_platform, scheds_cache.origin, serviceorigin.tps_description origin_description, serviceorigin.crs origin_crs, scheds_cache.origin_time, scheds_cache.public_origin,  scheds_cache.destination, servicedestination.tps_description destination_description, servicedestination.crs destination_crs, scheds_cache.destination_time, scheds_cache.public_destination, scheds.display_uid train_uid, "" train_identity, "'. $dt .'" as date, scheds.display_uid uuid, scheds.atoc_code atoc, scheds.sleepers, scheds.catering_code from associations_locations origin join associations_locations destination on (origin.id = destination.id and destination.tiploc_code ';
+		$query = 'select origin.public_departure deptime, origin.platform origin_platform, destination.public_arrival arrtime, destination.platform destination_platform, scheds_cache.origin, serviceorigin.tps_description origin_description, serviceorigin.crs origin_crs, scheds_cache.origin_time, scheds_cache.public_origin,  scheds_cache.destination, servicedestination.tps_description destination_description, servicedestination.crs destination_crs, scheds_cache.destination_time, scheds_cache.public_destination, scheds.display_uid train_uid, "" train_identity, "'. $dt .'" as date, scheds.display_uid unique_id, scheds.atoc_code atoc, scheds.sleepers, scheds.catering_code from associations_locations origin join associations_locations destination on (origin.id = destination.id and destination.tiploc_code ';
 		
 		if(is_array($destination)) {
 			foreach($destination as &$loc) {
@@ -924,7 +922,7 @@ class railServiceSearch {
 				$service->sleeper = ($service->sleepers != "") ? true : false;
 				$service->catering = $this->getServiceCatering($service->catering_code);
 				
-				// process the dates…
+				// process the datesâ€¦
 				$depdate = DateTime::createFromFormat('Y-m-d Hi', $service->date . ' ' . $service->deptime);
 				$service->depdate = ($service->deptime < $service->public_origin) ? $depdate->add(new DateInterval('P1D'))->format('d/m/Y') : $depdate->format('d/m/Y');
 				
@@ -1049,15 +1047,15 @@ class railServiceSearch {
 				}
 				
 				if($association->category == "JJ" && $association->date_indicator == "P") {
-					$current_run = array($association->assoc_mo,$association->assoc_tu,$association->assoc_we,$association->assoc_th,$association->assoc_fr,$association->assoc_sa,$association->assoc_su);
+					$current_run = array($association->runs_mo,$association->runs_tu,$association->runs_we,$association->runs_th,$association->runs_fr,$association->runs_sa,$association->runs_su);
 					
-					$association->assoc_mo = $current_run[6];
-					$association->assoc_tu = $current_run[0];
-					$association->assoc_we = $current_run[1];
-					$association->assoc_th = $current_run[2];
-					$association->assoc_fr = $current_run[3];
-					$association->assoc_sa = $current_run[4];
-					$association->assoc_su = $current_run[5];
+					$association->runs_mo = $current_run[6];
+					$association->runs_tu = $current_run[0];
+					$association->runs_we = $current_run[1];
+					$association->runs_th = $current_run[2];
+					$association->runs_fr = $current_run[3];
+					$association->runs_sa = $current_run[4];
+					$association->runs_su = $current_run[5];
 					
 					unset($current_run);
 				}
@@ -1078,13 +1076,13 @@ class railServiceSearch {
 										   'actual_uid' => $association->assoc_train_uid,
 										   'date_from' => (($association->category == "JJ") ? $dateFromAssoc : $association->date_from),
 										   'date_to' => (($association->category == "JJ") ? $dateToAssoc : $association->date_to),
-										   'runs_mo' => $association->assoc_mo,
-										   'runs_tu' => $association->assoc_tu,
-										   'runs_we' => $association->assoc_we,
-										   'runs_th' => $association->assoc_th,
-										   'runs_fr' => $association->assoc_fr,
-										   'runs_sa' => $association->assoc_sa,
-										   'runs_su' => $association->assoc_su,
+										   'runs_mo' => $association->runs_mo,
+										   'runs_tu' => $association->runs_tu,
+										   'runs_we' => $association->runs_we,
+										   'runs_th' => $association->runs_th,
+										   'runs_fr' => $association->runs_fr,
+										   'runs_sa' => $association->runs_sa,
+										   'runs_su' => $association->runs_su,
 										   'bank_hol' => $mainService->bank_hol,
 										   'status' => $assocService->status,
 										   'category' => $assocService->category,
@@ -1096,7 +1094,7 @@ class railServiceSearch {
 										   'stp_indicator' => $association->stp_indicator,
 										   'atoc_code' => (($association->category == "JJ") ? $assocService->atoc_code : $mainService->atoc_code));
 										   
-				// cycle through escaping each input…
+				// cycle through escaping each input
 				foreach($schedule as &$val) { $val = $this->escape($val); }
 				$schedule = (object)$schedule;
 				$insertId = 0;
